@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: Unlicense */
+
 :- module(pkg, [pkg_install/0]).
 
 :- use_module(library(os)).
