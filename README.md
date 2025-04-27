@@ -4,7 +4,8 @@ This project is intended to be a testing ground for how to do a package manager
 for Scryer Prolog. This is still really rough (currently it has trivially
 exploitable arbitrary remote code execution) and is not intended for general
 use yet. If you want to contribute or have any ideas or questions feel free to
-get in touch and create issues, pull requests and discussions.
+get in touch and create issues, pull requests and
+[discussions](https://github.com/bakaq/pkg.pl/discussions).
 
 ## How to use
 
@@ -13,7 +14,7 @@ A package is a directory with a `scryer-manifest.pl`, the current schema is some
 ```prolog
 name("name_of_the_package").
 % Optional. The file that will be imported when this package is used.
-main_file("main.pl")
+main_file("main.pl").
 % Optional
 dependencies([
     % A git url to clone
