@@ -31,7 +31,7 @@ dependencies yet). You can then import packages in your code as follows:
 % Loads the package loader
 :- use_module(pkg).
 
-% Loads a package. the argument should be an atom equal to the name of the
+% Loads a package. The argument should be an atom equal to the name of the
 % dependency package specified in the `name/1` field of its manifest.
 :- use_module(pkg(testing)).
 
