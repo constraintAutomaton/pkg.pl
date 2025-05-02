@@ -56,12 +56,17 @@ ensure_dependencies([D|Ds]) :-
     ensure_dependency(D),
     ensure_dependencies(Ds).
 
-ensure_dependency(git(Url)) :-
+ensure_dependency(GitTerm) :-
     shell("rm -rf scryer_libs/tmp"),
     % Hell yeah, injection attack!
-    append(["git clone --depth 1 ", Url, " scryer_libs/tmp"], Command),
+    git_command(GitTerm, GitCommand),
+    append(GitCommand, Command),
     shell(Command),
     parse_manifest("scryer_libs/tmp/scryer-manifest.pl", Manifest),
     member(name(Name), Manifest),
     append(["rm -rf scryer_libs/", Name, "; mv scryer_libs/tmp scryer_libs/", Name], Command2),
     shell(Command2).
+
+git_command(git(Url), ["git clone --depth 1 --single-branch ", Url, " scryer_libs/tmp"]).
+git_command(git(Url, branch(Branch)), ["git clone --depth 1 --single-branch --branch ", Branch, " ", Url, " scryer_libs/tmp"]).
+git_command(git(Url, tag(Tag)), GitCommand) :- git_command(git(Url, branch(Tag)), GitCommand).
