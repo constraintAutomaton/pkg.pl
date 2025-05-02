@@ -14,7 +14,7 @@ install() {
 }
 
 test_package() {
-    scryer-prolog -f main.pl -g main,halt
+    scryer-prolog -f main.pl -g "catch(main, _, halt(1)),halt"
 }
 
 clean
