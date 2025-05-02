@@ -90,3 +90,9 @@ git_command(git(Url, branch(Branch)), Command) :-
 
 git_command(git(Url, tag(Tag)), Command) :-
     git_command(git(Url, branch(Tag)), Command).
+
+git_command(git(Url, hash(Hash)), Command) :-
+    CloneCommand = ["git clone --quiet --depth 1 --single-branch ", Url, " scryer_libs/tmp "],
+    GetHashCommit = [" && pushd scryer_libs/tmp && git fetch --depth 1 origin ", Hash, " && git checkout ", Hash, " && popd"],
+    append(CloneCommand, GetHashCommit,  Segments), 
+    append(Segments, Command).
