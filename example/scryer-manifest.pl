@@ -8,5 +8,7 @@ dependencies([
     % A git url to clone at a specific branch
     git("https://github.com/constraintAutomaton/test-prolog-package-manager.git", branch("branch")),
     % A git url to clone at a tag
-    git("https://github.com/constraintAutomaton/test-prolog-package-manager.git", tag("tag"))
+    git("https://github.com/constraintAutomaton/test-prolog-package-manager.git", tag("tag")),
+    % A git url to clone at a specific commit hash
+    git("https://github.com/constraintAutomaton/test-prolog-package-manager.git", hash("d19fefc1d7907f6675e181601bb9b8b94561b441"))
 ]).
