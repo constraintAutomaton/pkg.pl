@@ -15,7 +15,5 @@ main :-
     run_tests,
     halt.
 
-test("Example success test", (true)).
-test("Example failing test", (false)).
 test("test if the branch dependency works", (tag(exist))).
 test("test if the tag dependency works", (branch(exist))).

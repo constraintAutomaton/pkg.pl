@@ -1,0 +1,30 @@
+name: CI
+on:
+  push:
+    branches:
+      - main
+  pull-request:
+  workflow_dispatch:
+
+jobs:
+  test-example:
+    name: Test example package
+    runs-on: ubuntu-latest
+    steps:
+      - name: git checkout
+        uses: actions/checkout@v4
+      - name: Install Nix
+        uses: cachix/install-nix-action@v31
+      - name: Setup Cachix
+        uses: cachix/cachix-action@v16
+        with:
+          name: pkg-pl
+          authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+      - name: Generate and cache dev environment
+        run: |
+          nix develop --profile dev-profile --command true
+          cachix push pkg-pl dev-profile
+      - name: Run tests
+        run: |
+          nix develop --command \
+            ./scripts/test.sh
