@@ -3,6 +3,7 @@
 :- module(pkg, [pkg_install/0]).
 
 :- use_module(library(os)).
+:- use_module(library(pio)).
 :- use_module(library(files)).
 :- use_module(library(lists)).
 :- use_module(library(format)).
@@ -46,6 +47,7 @@ pkg_install :-
     ;   make_directory_path("scryer_libs")
     ),
     setenv("SHELL", "/bin/sh"),
+    setenv("GIT_ADVICE", "0"),
     (   member(dependencies(Deps), Manifest) ->
         ensure_dependencies(Deps)
     ;   true
@@ -57,16 +59,34 @@ ensure_dependencies([D|Ds]) :-
     ensure_dependencies(Ds).
 
 ensure_dependency(GitTerm) :-
-    shell("rm -rf scryer_libs/tmp"),
+    current_output(Out),
+    phrase_to_stream(("Ensuring is installed: ", portray_clause_(GitTerm)), Out),
+    shell("rm --recursive --force scryer_libs/tmp"),
     % Hell yeah, injection attack!
-    git_command(GitTerm, GitCommand),
-    append(GitCommand, Command),
+    git_command(GitTerm, Command),
     shell(Command),
     parse_manifest("scryer_libs/tmp/scryer-manifest.pl", Manifest),
     member(name(Name), Manifest),
-    append(["rm -rf scryer_libs/", Name, "; mv scryer_libs/tmp scryer_libs/", Name], Command2),
+    append(
+        [
+            "rm --recursive --force scryer_libs/", Name,
+            "; mv scryer_libs/tmp scryer_libs/", Name
+        ],
+        Command2
+    ),
     shell(Command2).
 
-git_command(git(Url), ["git clone --depth 1 --single-branch ", Url, " scryer_libs/tmp"]).
-git_command(git(Url, branch(Branch)), ["git clone --depth 1 --single-branch --branch ", Branch, " ", Url, " scryer_libs/tmp"]).
-git_command(git(Url, tag(Tag)), GitCommand) :- git_command(git(Url, branch(Tag)), GitCommand).
+git_command(git(Url), Command) :-
+    Segments = ["git clone --quiet --depth 1 --single-branch ", Url, " scryer_libs/tmp"],
+    append(Segments, Command).
+
+git_command(git(Url, branch(Branch)), Command) :-
+    Segments = [
+        "git clone --quiet --depth 1 --single-branch --branch ",
+        Branch, " ", Url,
+        " scryer_libs/tmp"
+    ],
+    append(Segments, Command).
+
+git_command(git(Url, tag(Tag)), Command) :-
+    git_command(git(Url, branch(Tag)), Command).
