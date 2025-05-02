@@ -1,15 +1,13 @@
-name: CI
+name: Cachix
 on:
   push:
     branches:
       - main
-  pull_request:
   workflow_dispatch:
 
 jobs:
-
-  test-example:
-    name: Test example package
+  generate-dev-env:
+    name: Generate development environment
     runs-on: ubuntu-latest
     steps:
       - name: git checkout
@@ -20,7 +18,8 @@ jobs:
         uses: cachix/cachix-action@v16
         with:
           name: pkg-pl
-      - name: Run tests
+          authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+      - name: Generate and cache dev environment
         run: |
-          nix develop --command \
-            ./scripts/tests.sh
+          nix develop --profile dev-profile --command true
+          cachix push pkg-pl dev-profile
