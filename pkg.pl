@@ -58,12 +58,12 @@ ensure_dependencies([D|Ds]) :-
     ensure_dependency(D),
     ensure_dependencies(Ds).
 
-ensure_dependency(GitTerm) :-
+ensure_dependency(DependencyTerm) :-
     current_output(Out),
-    phrase_to_stream(("Ensuring is installed: ", portray_clause_(GitTerm)), Out),
+    phrase_to_stream(("Ensuring is installed: ", portray_clause_(DependencyTerm)), Out),
     shell("rm --recursive --force scryer_libs/tmp"),
     % Hell yeah, injection attack!
-    git_command(GitTerm, Command),
+    dependency_aq_command(DependencyTerm, Command),
     shell(Command),
     parse_manifest("scryer_libs/tmp/scryer-manifest.pl", Manifest),
     member(name(Name), Manifest),
@@ -75,6 +75,10 @@ ensure_dependency(GitTerm) :-
         Command2
     ),
     shell(Command2).
+
+dependency_aq_command(git(X), Command) :- git_command(git(X), Command).
+dependency_aq_command(git(X, Y), Command) :- git_command(git(X, Y), Command).
+dependency_aq_command(path(X), Command) :- path_command(path(X), Command).
 
 git_command(git(Url), Command) :-
     Segments = ["git clone --quiet --depth 1 --single-branch ", Url, " scryer_libs/tmp"],
@@ -95,4 +99,8 @@ git_command(git(Url, hash(Hash)), Command) :-
     CloneCommand = ["git clone --quiet --depth 1 --single-branch ", Url, " scryer_libs/tmp "],
     GetHashCommitCommand = [" && cd scryer_libs/tmp  >/dev/null && git fetch --quiet --depth 1 origin ", Hash, " && git checkout --quiet ", Hash, " && cd ../  >/dev/null"],
     append(CloneCommand, GetHashCommitCommand,  Segments), 
+    append(Segments, Command).
+
+path_command(path(Path), Command) :-
+    Segments = ["ln -rs ", Path, " scryer_libs/tmp"],
     append(Segments, Command).
