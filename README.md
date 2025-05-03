@@ -24,7 +24,9 @@ dependencies([
     % A git url to clone at a tag
     git("https://github.com/constraintAutomaton/test-prolog-package-manager.git", tag("tag")),
     % A git url to clone at a specific commit hash
-    git("https://github.com/constraintAutomaton/test-prolog-package-manager.git", hash("d19fefc1d7907f6675e181601bb9b8b94561b441"))
+    git("https://github.com/constraintAutomaton/test-prolog-package-manager.git", hash("d19fefc1d7907f6675e181601bb9b8b94561b441")),
+    % A path to a local package
+    path("./local_package")
 ]).
 ```
 
