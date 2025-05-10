@@ -56,24 +56,42 @@ pkg_install :-
     setenv("GIT_ADVICE", "0"),
     (   member(dependencies(Deps), Manifest) ->
         ensure_dependencies(Deps),
-        write(Ls)
+        ensure_lock_dependencies(Deps, LockDeps)
     ;   true
-    ).
+    ),
+    materialize_lock_file(LockDeps).
 
-ensure_dependencies([], []).
+materialize_lock_file(LockDeps) :-
+    open('manifest-lock.pl', write, Stream),
+    write(Stream, '% WARNING: This file is auto-generated. Do NOT modify it manually.\n'),
+    write_term(Stream, lock_dependencies(LockDeps), [double_quotes(true)]),
+    close(Stream).
+ensure_dependencies([]).
 ensure_dependencies([D|Ds]) :-
     ensure_dependency(D),
     ensure_dependencies(Ds).    
 
-ensure_dependency(DependencyTerm, LockDependencyTerm) :-
+ensure_lock_dependencies([], []).
+
+ensure_lock_dependencies([D|Ds], [L|Ls]) :-
+    ensure_lock_dependency(D, L),
+    ensure_lock_dependencies(Ds, Ls).
+
+ensure_lock_dependency(dependency(PkgName, DependencyTerm), LockedDependencyTerm) :-
+    atom_chars(PkgName, Name),
+    append(["scryer_libs/", Name], Path),
+    lock_dependency(DependencyTerm, Path, LockedDependencyTerm).
+
+ensure_dependency(dependency(PkgName, DependencyTerm)) :-
     current_output(Out),
     phrase_to_stream(("Ensuring is installed: ", portray_clause_(DependencyTerm)), Out),
     shell("rm --recursive --force scryer_libs/tmp"),
     % Hell yeah, injection attack!
     dependency_aq_command(DependencyTerm, Command),
     shell(Command),
-    parse_manifest("scryer_libs/tmp/scryer-manifest.pl", Manifest),
-    member(name(Name), Manifest),
+    * parse_manifest("scryer_libs/tmp/scryer-manifest.pl", Manifest),
+    * member(name(Name), Manifest),
+    atom_chars(PkgName, Name),
     append(
         [
             "rm --recursive --force scryer_libs/", Name,
@@ -81,10 +99,7 @@ ensure_dependency(DependencyTerm, LockDependencyTerm) :-
         ],
         Command2
     ),
-    shell(Command2),
-    append(["scryer_libs/", Name], Path),
-    lock_dependency(DependencyTerm, Path, LockDependencyTerm),
-    write(LockDependencyTerm).
+    shell(Command2).
 
 dependency_aq_command(git(X), Command) :- git_command(git(X), Command).
 dependency_aq_command(git(X, Y), Command) :- git_command(git(X, Y), Command).
