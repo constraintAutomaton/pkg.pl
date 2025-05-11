@@ -78,10 +78,14 @@ materialize_lock_file(LockDeps) :-
     write(Stream, '.\n'),
     close(Stream).
 
+dependency(_, _, _).
+lock_dependencies(_).
+
+lock_dependency_with_name([dependency(Name, X, _)|_], dependency(Name, _), dependency(Name, X)) :- !.
+
 lock_dependency_with_name([_|Ls], dependency(Name, _), Dep) :-
     lock_dependency_with_name(Ls, dependency(Name, _), Dep).
 
-lock_dependency_with_name([dependency(Name, X, _)|_], dependency(Name, _), dependency(Name, X)).
 
 ensure_dependencies([], _).
 ensure_dependencies([D|Ds], Ls) :-
@@ -136,9 +140,9 @@ git_command(git(Url, tag(Tag)), PkgName, Command) :-
 
 git_command(git(Url, hash(Hash)), PkgName, Command) :-
     dependency_directory_name(DF),
-    CloneCommand = ["git clone --quiet --depth 1 --single-branch ", Url, " ", DF, "/", PkgName, " "],
-    GetHashCommitCommand = [" && cd ", DF, "/", PkgName, " >/dev/null && while ! git rev-parse --verify HEAD >/dev/null 2>&1; do sleep 0.01; done && git fetch --quiet --depth 1 origin ", Hash, " && git checkout --quiet ", Hash],
-    append(CloneCommand, GetHashCommitCommand,  Segments), 
+    CloneCommand = ["(git clone --quiet --depth 1 --single-branch ", Url, " ", DF, "/", PkgName, " "],
+    GetHashCommitCommand = [" && cd ", DF, "/", PkgName, " && git fetch --quiet --depth 1 origin ", Hash, " && git checkout --quiet ", Hash, " )"],
+    append(CloneCommand, GetHashCommitCommand,  Segments),
     append(Segments, Command).
 
 path_command(path(Path), PkgName, Command) :-
@@ -153,7 +157,7 @@ lock_dependency(dependency(PkgName, git(Url)), LockDependencyTerm) :-
     append(["find ",DF,"/", Name, " -type f -print0 | sort -z | xargs -0 sha1sum | sha1sum | awk '{print $1}'"], IntegrityHashCmd),
     run_command(GitHashCmd, temp_result(Hash)),
     run_command(IntegrityHashCmd, temp_result(IntegrityHash)),
-    LockDependencyTerm=dependency(Name, git(Url, hash(Hash), IntegrityHash)).
+    LockDependencyTerm=dependency(PkgName, git(Url, hash(Hash)), IntegrityHash).
 
 lock_dependency(dependency(Name, git(Url, tag(_))), LockDependencyTerm) :-
     lock_dependency(dependency(Name, git(Url)), LockDependencyTerm).
@@ -166,7 +170,7 @@ lock_dependency(dependency(PkgName, git(Url, hash(Hash))), LockDependencyTerm):-
     atom_chars(PkgName, Name),
     append(["find ",DF,"/", Name, " -type f -print0 | sort -z | xargs -0 sha1sum | sha1sum | awk '{print $1}'"], IntegrityHashCmd),
     run_command(IntegrityHashCmd, temp_result(IntegrityHash)),
-    LockDependencyTerm=dependency(Name, git(Url, hash(Hash), IntegrityHash)).
+    LockDependencyTerm=dependency(PkgName, git(Url, hash(Hash)), IntegrityHash).
 
 lock_dependency(dependency(PkgName, path(Path)), LockDependencyTerm) :-
     dependency_directory_name(DF),
