@@ -9,10 +9,14 @@
 :- use_module(library(format)).
 :- use_module(library(debug)).
 
+dependency_directory_name("scryer_libs").
+manifest_file_name("scryer-manifest.pl").
+lock_file_name("manifest-lock.pl").
+
 scryer_path(ScryerPath) :-
     (   getenv("SCRYER_PATH", ScryerPath) ->
         true
-    ;   ScryerPath = "scryer_libs"
+    ;   dependency_directory_name(ScryerPath)
     ).
 
 parse_manifest(Filename, Manifest) :-
@@ -32,7 +36,8 @@ user:term_expansion((:- use_module(pkg(Package))), UsePackage) :-
     atom_chars(Package, PackageChars),
     scryer_path(ScryerPath),
     append([ScryerPath, "/", PackageChars], PackagePath),
-    append([PackagePath, "/", "scryer-manifest.pl"], ManifestPath),
+    manifest_file_name(ManifestName),
+    append([PackagePath, "/", ManifestName], ManifestPath),
     parse_manifest(ManifestPath, Manifest),
     member(main_file(MainFile), Manifest),
     append([PackagePath, "/", MainFile], PackageMainFileChars),
@@ -42,13 +47,17 @@ user:term_expansion((:- use_module(pkg(Package))), UsePackage) :-
     ).
 
 pkg_install :-
-    parse_manifest("scryer-manifest.pl", Manifest),
-    (   directory_exists("scryer_libs") ->
+    manifest_file_name(ManifestFileName),
+    dependency_directory_name(DependencyDirectoryName),
+    lock_file_name(LockFileFileName),
+    parse_manifest(ManifestFileName, Manifest),
+    
+    (   directory_exists(DependencyDirectoryName) ->
         true
-    ;   make_directory_path("scryer_libs")
+    ;   make_directory_path(DependencyDirectoryName)
     ),
-    (   file_exists("manifest-lock.pl") ->
-        parse_manifest("manifest-lock.pl", LockFile),
+    (   file_exists(LockFileFileName) ->
+        parse_manifest(LockFileFileName, LockFile),
         member(lock_dependencies(LockDepsMat),LockFile)
     ;   LockDepsMat = []
     ),
@@ -62,7 +71,8 @@ pkg_install :-
     materialize_lock_file(LockDeps).
 
 materialize_lock_file(LockDeps) :-
-    open('manifest-lock.pl', write, Stream),
+    lock_file_name(LockFileFileName),
+    open(LockFileFileName, write, Stream),
     write(Stream, '% WARNING: This file is auto-generated. Do NOT modify it manually.\n\n'),
     write_term(Stream, lock_dependencies(LockDeps), [double_quotes(true)]),
     write(Stream, '.\n'),
@@ -88,54 +98,56 @@ ensure_lock_dependencies([D|Ds], [L|Ls]) :-
     ensure_lock_dependencies(Ds, Ls).
 
 ensure_lock_dependency(dependency(PkgName, X), LockedDependencyTerm) :-
+    dependency_directory_name(DependencyDirectoryName),
     atom_chars(PkgName, Name),
-    append(["scryer_libs/", Name], Path),
+    append([DependencyDirectoryName, "/", Name], Path),
     lock_dependency(dependency(PkgName, X), Path, LockedDependencyTerm).
 
 ensure_dependency(dependency(PkgName, DependencyTerm)) :-
-    current_output(Out),
-    phrase_to_stream(("Ensuring is installed: ", portray_clause_(DependencyTerm)), Out),
-    shell("rm --recursive --force scryer_libs/tmp"),
-    % Hell yeah, injection attack!
-    dependency_aq_command(DependencyTerm, Command),
-    shell(Command),
     atom_chars(PkgName, Name),
-    append(
-        [
-            "rm --recursive --force scryer_libs/", Name,
-            "; mv scryer_libs/tmp scryer_libs/", Name
-        ],
-        Command2
-    ),
-    shell(Command2).
+    current_output(Out),
+    dependency_directory_name(DF),
+    append([DF, "/", Name], DepF),
+    ( directory_exists(DepF) ->
+        phrase_to_stream(("Already installed: ", portray_clause_(dependency(PkgName, DependencyTerm))), Out)
+    ;
+        make_directory(DepF),
+        phrase_to_stream(("Ensuring is installed: ", portray_clause_(dependency(PkgName, DependencyTerm))), Out),
+        % Hell yeah, injection attack!
+        dependency_aq_command(dependency(PkgName, DependencyTerm), Command),
+        shell(Command)
+    ).
 
-dependency_aq_command(git(X), Command) :- git_command(git(X), Command).
-dependency_aq_command(git(X, Y), Command) :- git_command(git(X, Y), Command).
-dependency_aq_command(path(X), Command) :- path_command(path(X), Command).
+dependency_aq_command(dependency(PkgName, git(X)), Command) :- atom_chars(PkgName, Name), git_command(git(X), Name, Command).
+dependency_aq_command(dependency(PkgName, git(X, Y)), Command) :- atom_chars(PkgName, Name), git_command(git(X, Y), Name, Command).
+dependency_aq_command(dependency(PkgName, path(X)), Command) :- atom_chars(PkgName, Name), path_command(path(X), Name, Command).
 
-git_command(git(Url), Command) :-
-    Segments = ["git clone --quiet --depth 1 --single-branch ", Url, " scryer_libs/tmp"],
+git_command(git(Url), PkgName, Command) :-
+    dependency_directory_name(DF),
+    Segments = ["git clone --quiet --depth 1 --single-branch ", Url, " ", DF, "/", PkgName],
     append(Segments, Command).
 
-git_command(git(Url, branch(Branch)), Command) :-
+git_command(git(Url, branch(Branch)), PkgName,  Command) :-
+    dependency_directory_name(DF),
     Segments = [
         "git clone --quiet --depth 1 --single-branch --branch ",
-        Branch, " ", Url,
-        " scryer_libs/tmp"
+        Branch, " ", Url, " ", DF, "/", PkgName
     ],
     append(Segments, Command).
 
-git_command(git(Url, tag(Tag)), Command) :-
-    git_command(git(Url, branch(Tag)), Command).
+git_command(git(Url, tag(Tag)), PkgName, Command) :-
+    git_command(git(Url, branch(Tag)), PkgName, Command).
 
-git_command(git(Url, hash(Hash)), Command) :-
-    CloneCommand = ["git clone --quiet --depth 1 --single-branch ", Url, " scryer_libs/tmp "],
-    GetHashCommitCommand = [" && cd scryer_libs/tmp  >/dev/null && git fetch --quiet --depth 1 origin ", Hash, " && git checkout --quiet ", Hash],
+git_command(git(Url, hash(Hash)), PkgName, Command) :-
+    dependency_directory_name(DF),
+    CloneCommand = ["git clone --quiet --depth 1 --single-branch ", Url, " ", DF, "/", PkgName, " "],
+    GetHashCommitCommand = [" && cd ", DF, "/", PkgName, " >/dev/null && git fetch --quiet --depth 1 origin ", Hash, " && git checkout --quiet ", Hash],
     append(CloneCommand, GetHashCommitCommand,  Segments), 
     append(Segments, Command).
 
-path_command(path(Path), Command) :-
-    Segments = ["ln -rs ", Path, " scryer_libs/tmp"],
+path_command(path(Path), PkgName, Command) :-
+    dependency_directory_name(DF),
+    Segments = ["ln -rs ", Path, " ", DF, "/", PkgName],
     append(Segments, Command).
 
 lock_dependency(dependency(Name, git(Url)), Path, LockDependencyTerm) :-
@@ -155,6 +167,7 @@ lock_dependency(dependency(Name, path(Path)), _, dependency(Name, path(Path))).
 
 /**
  A hack to get the result of a shell command.
+ Maybe current_output could fix this
 */
 run_command(Command, Output) :-
     append(["echo \"temp_result(\\\"$(",Command, ")\\\").\" > temp"], Command2),
@@ -163,3 +176,5 @@ run_command(Command, Output) :-
     read(Stream, Output),
     close(Stream),
     shell("rm temp").
+
+% find ./ -type f -print0 | sort -z | xargs -0 sha1sum | sha1sum 
