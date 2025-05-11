@@ -108,7 +108,6 @@ ensure_dependency(dependency(PkgName, DependencyTerm)) :-
     ( directory_exists(DepF) ->
         phrase_to_stream(("Already installed: ", portray_clause_(dependency(PkgName, DependencyTerm))), Out)
     ;
-        make_directory(DepF),
         phrase_to_stream(("Ensuring is installed: ", portray_clause_(dependency(PkgName, DependencyTerm))), Out),
         % Hell yeah, injection attack!
         dependency_aq_command(dependency(PkgName, DependencyTerm), Command),
@@ -138,13 +137,13 @@ git_command(git(Url, tag(Tag)), PkgName, Command) :-
 git_command(git(Url, hash(Hash)), PkgName, Command) :-
     dependency_directory_name(DF),
     CloneCommand = ["git clone --quiet --depth 1 --single-branch ", Url, " ", DF, "/", PkgName, " "],
-    GetHashCommitCommand = [" && cd ", DF, "/", PkgName, " >/dev/null && git fetch --quiet --depth 1 origin ", Hash, " && git checkout --quiet ", Hash],
+    GetHashCommitCommand = [" && cd ", DF, "/", PkgName, " >/dev/null && while ! git rev-parse --verify HEAD >/dev/null 2>&1; do sleep 0.01; done && git fetch --quiet --depth 1 origin ", Hash, " && git checkout --quiet ", Hash],
     append(CloneCommand, GetHashCommitCommand,  Segments), 
     append(Segments, Command).
 
 path_command(path(Path), PkgName, Command) :-
     dependency_directory_name(DF),
-    Segments = ["ln -rs ", Path, "/* ", DF, "/", PkgName],
+    Segments = ["ln -rs ", Path, " ", DF, "/", PkgName ],
     append(Segments, Command).
 
 lock_dependency(dependency(PkgName, git(Url)), LockDependencyTerm) :-
