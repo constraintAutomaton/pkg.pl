@@ -81,7 +81,7 @@ materialize_lock_file(LockDeps) :-
 lock_dependency_with_name([_|Ls], dependency(Name, _), Dep) :-
     lock_dependency_with_name(Ls, dependency(Name, _), Dep).
 
-lock_dependency_with_name([dependency(Name, X)|_], dependency(Name, _), dependency(Name, X)).
+lock_dependency_with_name([dependency(Name, X, _)|_], dependency(Name, _), dependency(Name, X)).
 
 ensure_dependencies([], _).
 ensure_dependencies([D|Ds], Ls) :-
@@ -98,10 +98,7 @@ ensure_lock_dependencies([D|Ds], [L|Ls]) :-
     ensure_lock_dependencies(Ds, Ls).
 
 ensure_lock_dependency(dependency(PkgName, X), LockedDependencyTerm) :-
-    dependency_directory_name(DependencyDirectoryName),
-    atom_chars(PkgName, Name),
-    append([DependencyDirectoryName, "/", Name], Path),
-    lock_dependency(dependency(PkgName, X), Path, LockedDependencyTerm).
+    lock_dependency(dependency(PkgName, X), LockedDependencyTerm).
 
 ensure_dependency(dependency(PkgName, DependencyTerm)) :-
     atom_chars(PkgName, Name),
@@ -150,20 +147,34 @@ path_command(path(Path), PkgName, Command) :-
     Segments = ["ln -rs ", Path, " ", DF, "/", PkgName],
     append(Segments, Command).
 
-lock_dependency(dependency(Name, git(Url)), Path, LockDependencyTerm) :-
-    append(["cd ", Path, " && git rev-parse HEAD"], Command),
-    run_command(Command, temp_result(Hash)),
-    LockDependencyTerm=dependency(Name, git(Url, hash(Hash))).
+lock_dependency(dependency(PkgName, git(Url)), LockDependencyTerm) :-
+    dependency_directory_name(DF),
+    atom_chars(PkgName, Name),
+    append(["cd ", DF,"/", Name, " && git rev-parse HEAD"], GitHashCmd),
+    append(["find ",DF,"/", Name, " -type f -print0 | sort -z | xargs -0 sha1sum | sha1sum | awk '{print $1}'"], IntegrityHashCmd),
+    run_command(GitHashCmd, temp_result(Hash)),
+    run_command(IntegrityHashCmd, temp_result(IntegrityHash)),
+    LockDependencyTerm=dependency(Name, git(Url, hash(Hash), IntegrityHash)).
 
-lock_dependency(dependency(Name, git(Url, tag(_))), Path, LockDependencyTerm) :-
-    lock_dependency(dependency(Name, git(Url)), Path, LockDependencyTerm).
+lock_dependency(dependency(Name, git(Url, tag(_))), LockDependencyTerm) :-
+    lock_dependency(dependency(Name, git(Url)), LockDependencyTerm).
 
-lock_dependency(dependency(Name, git(Url, branch(_))), Path, LockDependencyTerm) :-
-    lock_dependency(dependency(Name, git(Url)), Path, LockDependencyTerm).
+lock_dependency(dependency(Name, git(Url, branch(_))), LockDependencyTerm) :-
+    lock_dependency(dependency(Name, git(Url)), LockDependencyTerm).
 
-lock_dependency(dependency(Name, git(Url, hash(Hash))), _, dependency(Name, git(Url, hash(Hash)))).
+lock_dependency(dependency(PkgName, git(Url, hash(Hash))), LockDependencyTerm):-
+    dependency_directory_name(DF),
+    atom_chars(PkgName, Name),
+    append(["find ",DF,"/", Name, " -type f -print0 | sort -z | xargs -0 sha1sum | sha1sum | awk '{print $1}'"], IntegrityHashCmd),
+    run_command(IntegrityHashCmd, temp_result(IntegrityHash)),
+    LockDependencyTerm=dependency(Name, git(Url, hash(Hash), IntegrityHash)).
 
-lock_dependency(dependency(Name, path(Path)), _, dependency(Name, path(Path))).
+lock_dependency(dependency(PkgName, path(Path)), LockDependencyTerm) :-
+    dependency_directory_name(DF),
+    atom_chars(PkgName, Name),
+    append(["find ",DF,"/", Name, " -type f -print0 | sort -z | xargs -0 sha1sum | sha1sum | awk '{print $1}'"], IntegrityHashCmd),
+    run_command(IntegrityHashCmd, temp_result(IntegrityHash)),
+    LockDependencyTerm=dependency(Name, path(Path), IntegrityHash).
 
 /**
  A hack to get the result of a shell command.
@@ -176,5 +187,3 @@ run_command(Command, Output) :-
     read(Stream, Output),
     close(Stream),
     shell("rm temp").
-
-% find ./ -type f -print0 | sort -z | xargs -0 sha1sum | sha1sum 
