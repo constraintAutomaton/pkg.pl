@@ -144,7 +144,7 @@ git_command(git(Url, hash(Hash)), PkgName, Command) :-
 
 path_command(path(Path), PkgName, Command) :-
     dependency_directory_name(DF),
-    Segments = ["ln -rs ", Path, " ", DF, "/", PkgName],
+    Segments = ["ln -rs ", Path, "/* ", DF, "/", PkgName],
     append(Segments, Command).
 
 lock_dependency(dependency(PkgName, git(Url)), LockDependencyTerm) :-
