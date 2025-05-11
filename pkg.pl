@@ -124,14 +124,14 @@ dependency_aq_command(dependency(PkgName, path(X)), Command) :- atom_chars(PkgNa
 
 git_command(git(Url), PkgName, Command) :-
     dependency_directory_name(DF),
-    Segments = ["git clone --quiet --depth 1 --single-branch ", Url, " ", DF, "/", PkgName],
+    Segments = ["git clone --quiet --depth 1 --single-branch ", Url, " ", DF, "/", PkgName, " &"],
     append(Segments, Command).
 
 git_command(git(Url, branch(Branch)), PkgName,  Command) :-
     dependency_directory_name(DF),
     Segments = [
         "git clone --quiet --depth 1 --single-branch --branch ",
-        Branch, " ", Url, " ", DF, "/", PkgName
+        Branch, " ", Url, " ", DF, "/", PkgName, " &"
     ],
     append(Segments, Command).
 
