@@ -8,8 +8,8 @@ on:
 
 jobs:
 
-  test-example:
-    name: Test example package
+  run-tests:
+    name: Run tests
     runs-on: ubuntu-latest
     steps:
       - name: git checkout
@@ -23,4 +23,4 @@ jobs:
       - name: Run tests
         run: |
           nix develop --command \
-            ./scripts/tests.sh
+            just test
