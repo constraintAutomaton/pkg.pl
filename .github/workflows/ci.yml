@@ -8,7 +8,7 @@ on:
 
 jobs:
 
-  run-tests:
+  run-ci:
     name: Run tests
     runs-on: ubuntu-latest
     steps:
@@ -20,7 +20,7 @@ jobs:
         uses: cachix/cachix-action@v16
         with:
           name: pkg-pl
-      - name: Run tests
+      - name: Run CI
         run: |
           nix develop --command \
-            just test
+            just ci
