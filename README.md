@@ -57,4 +57,4 @@ test("Another test", (false)).
 
 ## Contributing
 
-See (CNTRIBUTING.md)[CONTRIBUTING.md].
+See [CONTRIBUTING.md](CONTRIBUTING.md).
