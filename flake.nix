@@ -26,8 +26,10 @@
       {
         devShells = {
           default = pkgs.mkShell {
-            buildInputs = [
-              pkgs.git
+            buildInputs = with pkgs; [
+              git
+              just
+            ] ++ [
               (scryer-prolog.packages.${system}.default.overrideAttrs (
                 final: prev: {
                   doCheck = false;

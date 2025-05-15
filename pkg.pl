@@ -6,12 +6,23 @@
 :- use_module(library(pio)).
 :- use_module(library(files)).
 :- use_module(library(lists)).
+:- use_module(library(charsio)).
 :- use_module(library(format)).
 :- use_module(library(debug)).
 
 dependency_directory_name("scryer_libs").
 manifest_file_name("scryer-manifest.pl").
 lock_file_name("manifest-lock.pl").
+
+% Cleanly pass arguments to a script through environment variables
+run_script_with_args(ScriptName, Args) :-
+    maplist(define_script_arg, Args),
+    append(["sh scryer_libs/scripts/", ScriptName, ".sh"], Script),
+    shell(Script),
+    maplist(undefine_script_arg, Args).
+
+define_script_arg(Arg-Value) :- setenv(Arg, Value).
+undefine_script_arg(Arg-_) :- unsetenv(Arg).
 
 scryer_path(ScryerPath) :-
     (   getenv("SCRYER_PATH", ScryerPath) ->
@@ -35,9 +46,8 @@ parse_manifest_(Stream, Manifest) :-
 user:term_expansion((:- use_module(pkg(Package))), UsePackage) :-
     atom_chars(Package, PackageChars),
     scryer_path(ScryerPath),
-    append([ScryerPath, "/", PackageChars], PackagePath),
-    manifest_file_name(ManifestName),
-    append([PackagePath, "/", ManifestName], ManifestPath),
+    append([ScryerPath, "/packages/", PackageChars], PackagePath),
+    append([PackagePath, "/", "scryer-manifest.pl"], ManifestPath),
     parse_manifest(ManifestPath, Manifest),
     member(main_file(MainFile), Manifest),
     append([PackagePath, "/", MainFile], PackageMainFileChars),
@@ -46,13 +56,9 @@ user:term_expansion((:- use_module(pkg(Package))), UsePackage) :-
         :- use_module(PackageMainFile)
     ).
 
-pkg_install :-
-    manifest_file_name(ManifestFileName),
-    dependency_directory_name(DependencyDirectoryName),
-    lock_file_name(LockFileFileName),
-    parse_manifest(ManifestFileName, Manifest),
-    
-    (   directory_exists(DependencyDirectoryName) ->
+% This creates the directory structure we want
+ensure_scryer_libs :-
+    (   directory_exists("scryer_libs") ->
         true
     ;   make_directory_path(DependencyDirectoryName)
     ),
@@ -61,11 +67,33 @@ pkg_install :-
         member(lock_dependencies(LockDepsMat),LockFile)
     ;   LockDepsMat = []
     ),
+    (   directory_exists("scryer_libs/packages") ->
+        true
+    ;   make_directory_path("scryer_libs/packages")
+    ),
+    (   directory_exists("scryer_libs/scripts") ->
+        true
+    ;   make_directory_path("scryer_libs/scripts"),
+        ensure_scripts
+    ).
+
+% Installs helper scripts
+ensure_scripts :-
+    findall(ScriptName-ScriptString, script_string(ScriptName, ScriptString), Scripts),
+    maplist(ensure_script, Scripts).
+
+ensure_script(Name-String) :-
+    append(["scryer_libs/scripts/", Name, ".sh"], Path),
+    phrase_to_file(String, Path).
+
+pkg_install :-
+    parse_manifest("scryer-manifest.pl", Manifest),
+    ensure_scryer_libs,
     setenv("SHELL", "/bin/sh"),
     setenv("GIT_ADVICE", "0"),
     (   member(dependencies(Deps), Manifest) ->
-        ensure_dependencies(Deps, LockDepsMat),
         ensure_lock_dependencies(Deps, LockDeps)
+        maplist(ensure_dependency, Deps)
     ;   true
     ),
     materialize_lock_file(LockDeps).
@@ -118,37 +146,39 @@ ensure_dependency(dependency(PkgName, DependencyTerm)) :-
         shell(Command)
     ).
 
-dependency_aq_command(dependency(PkgName, git(X)), Command) :- atom_chars(PkgName, Name), git_command(git(X), Name, Command).
-dependency_aq_command(dependency(PkgName, git(X, Y)), Command) :- atom_chars(PkgName, Name), git_command(git(X, Y), Name, Command).
-dependency_aq_command(dependency(PkgName, path(X)), Command) :- atom_chars(PkgName, Name), path_command(path(X), Name, Command).
-
-git_command(git(Url), PkgName, Command) :-
-    dependency_directory_name(DF),
-    Segments = ["git clone --quiet --depth 1 --single-branch ", Url, " ", DF, "/", PkgName, " &"],
-    append(Segments, Command).
-
-git_command(git(Url, branch(Branch)), PkgName,  Command) :-
-    dependency_directory_name(DF),
-    Segments = [
-        "git clone --quiet --depth 1 --single-branch --branch ",
-        Branch, " ", Url, " ", DF, "/", PkgName, " &"
+ensure_dependency(dependency(Name, DependencyTerm)) :-
+    write_term_to_chars(DependencyTerm, [quoted(true), double_quotes(true)], DependencyTermChars),
+    CommonArgs = [
+        "DEPENDENCY_NAME"-Name,
+        "DEPENDENCY_TERM"-DependencyTermChars
     ],
-    append(Segments, Command).
+    ensure_dependency_extra_args(DependencyTerm, ExtraArgs),
+    append(CommonArgs, ExtraArgs, Args),
+    run_script_with_args("ensure_dependency", Args).
 
-git_command(git(Url, tag(Tag)), PkgName, Command) :-
-    git_command(git(Url, branch(Tag)), PkgName, Command).
-
-git_command(git(Url, hash(Hash)), PkgName, Command) :-
-    dependency_directory_name(DF),
-    CloneCommand = ["(git clone --quiet --depth 1 --single-branch ", Url, " ", DF, "/", PkgName, " "],
-    GetHashCommitCommand = [" && cd ", DF, "/", PkgName, " && git fetch --quiet --depth 1 origin ", Hash, " && git checkout --quiet ", Hash, " )"],
-    append(CloneCommand, GetHashCommitCommand,  Segments),
-    append(Segments, Command).
-
-path_command(path(Path), PkgName, Command) :-
-    dependency_directory_name(DF),
-    Segments = ["ln -rs ", Path, " ", DF, "/", PkgName ],
-    append(Segments, Command).
+ensure_dependency_extra_args(git(Url), [
+    "DEPENDENCY_KIND"-"git_default",
+    "GIT_URL"-Url
+]).
+ensure_dependency_extra_args(git(Url,branch(Branch)), [
+    "DEPENDENCY_KIND"-"git_branch",
+    "GIT_URL"-Url,
+    "GIT_BRANCH"-Branch
+]).
+ensure_dependency_extra_args(git(Url,tag(Tag)), [
+    "DEPENDENCY_KIND"-"git_tag",
+    "GIT_URL"-Url,
+    "GIT_TAG"-Tag
+]).
+ensure_dependency_extra_args(git(Url,hash(Hash)), [
+    "DEPENDENCY_KIND"-"git_hash",
+    "GIT_URL"-Url,
+    "GIT_HASH"-Hash
+]).
+ensure_dependency_extra_args(path(Path), [
+    "DEPENDENCY_KIND"-"path",
+    "DEPENDENCY_PATH"-Path
+]).
 
 lock_dependency(dependency(PkgName, git(Url)), LockDependencyTerm) :-
     dependency_directory_name(DF),
@@ -190,3 +220,8 @@ run_command(Command, Output) :-
     read(Stream, Output),
     close(Stream),
     shell("rm temp").
+    
+% === Generated code start ===
+script_string("ensure_dependency", "#!/bin/sh\nset -eu\n\necho \"Ensuring is installed: ${DEPENDENCY_TERM}\"\n\nrm --recursive --force scryer_libs/tmp-package\n\nrelocate_tmp() {\n    rm --recursive --force \"scryer_libs/packages/${DEPENDENCY_NAME}\"\n    mv scryer_libs/tmp-package \"scryer_libs/packages/${DEPENDENCY_NAME}\"\n}\n\ncase \"${DEPENDENCY_KIND}\" in\n    git_default)\n        git clone \\\n            --quiet \\\n            --depth 1 \\\n            --single-branch \\\n            \"${GIT_URL}\" \\\n            scryer_libs/tmp-package\n        relocate_tmp\n        ;;\n    git_branch)\n        git clone \\\n            --quiet \\\n            --depth 1 \\\n            --single-branch \\\n            --branch \"${GIT_BRANCH}\" \\\n            \"${GIT_URL}\" \\\n            scryer_libs/tmp-package\n        relocate_tmp\n        ;;\n    git_tag)\n        git clone \\\n            --quiet \\\n            --depth 1 \\\n            --single-branch \\\n            --branch \"${GIT_TAG}\" \\\n            \"${GIT_URL}\" \\\n            scryer_libs/tmp-package\n        relocate_tmp\n        ;;\n    git_hash)\n        git clone \\\n            --quiet \\\n            --depth 1 \\\n            --single-branch \\\n            \"${GIT_URL}\" \\\n            scryer_libs/tmp-package\n        git -C scryer_libs/tmp-package fetch \\\n            --quiet \\\n            --depth 1 \\\n            origin \"${GIT_HASH}\"\n        git -C scryer_libs/tmp-package switch \\\n            --quiet \\\n            --detach \\\n            \"${GIT_HASH}\"\n        relocate_tmp\n        ;;\n    path)\n        ln -rsf \"${DEPENDENCY_PATH}\" \"scryer_libs/packages/${DEPENDENCY_NAME}\"\n        ;;\n    *)\n        echo \"Unknown dependency kind\"\n        exit 1\n        ;;\nesac\n").
+% === Generated code end ===
+

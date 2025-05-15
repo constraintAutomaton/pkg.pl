@@ -8,8 +8,8 @@ on:
 
 jobs:
 
-  test-example:
-    name: Test example package
+  run-ci:
+    name: Run CI
     runs-on: ubuntu-latest
     steps:
       - name: git checkout
@@ -20,7 +20,7 @@ jobs:
         uses: cachix/cachix-action@v16
         with:
           name: pkg-pl
-      - name: Run tests
+      - name: Run CI
         run: |
-          nix develop --command \
-            ./scripts/tests.sh
+          nix develop --ignore-env --command \
+            just ci

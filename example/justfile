@@ -1,0 +1,11 @@
+default:
+    @just --list
+
+clean:
+    rm --recursive --force scryer_libs
+
+install:
+    scryer-prolog -f pkg.pl -g pkg_install,halt
+
+test: clean install
+    scryer-prolog -f main.pl -g "catch(main, _, halt(1)),halt"

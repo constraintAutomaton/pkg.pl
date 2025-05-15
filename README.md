@@ -54,3 +54,7 @@ main :-
 test("Example test", (true)).
 test("Another test", (false)).
 ```
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md).

@@ -6,8 +6,8 @@
 :- use_module(pkg(testing)).
 :- use_module(pkg(test_branch)).
 :- use_module(pkg(test_tag)).
-:- use_module(pkg(test_local)).
 :- use_module(pkg(test_hash)).
+:- use_module(pkg(test_local)).
 
 % You can then use the predicates exported by the main file of the dependency
 % in the rest of the program.
