@@ -18,7 +18,7 @@ codegen:
             write_term(Script, [quoted(true),double_quotes(true)]),
             halt.
         ")
-        script_name=$(basename -s .sh ${file})
+        script_name=$(basename -s .sh "${file}")
         printf '%s\n' "script_string(\"${script_name}\", ${script_string})." >> pkg.pl.gen
     done
     sed -n -e "/% === Generated code end ===/,$ {p}" pkg.pl >> pkg.pl.gen

@@ -9,7 +9,7 @@ on:
 jobs:
 
   run-ci:
-    name: Run tests
+    name: Run CI
     runs-on: ubuntu-latest
     steps:
       - name: git checkout
