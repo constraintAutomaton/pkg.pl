@@ -87,6 +87,15 @@ pkg_install :-
     ).
 
 ensure_dependency(dependency(Name, DependencyTerm)) :-
+    append(["scryer_libs/packages/", Name], DepRepo),
+    (
+    directory_exists(DepRepo) ->
+        current_output(Out),
+         phrase_to_stream(("Already installed: ", portray_clause_(dependency(Name, DependencyTerm))), Out)
+    ;   ensure_dependency_(dependency(Name, DependencyTerm))
+    ).
+
+ensure_dependency_(dependency(Name, DependencyTerm)) :-
     write_term_to_chars(DependencyTerm, [quoted(true), double_quotes(true)], DependencyTermChars),
     CommonArgs = [
         "DEPENDENCY_NAME"-Name,
