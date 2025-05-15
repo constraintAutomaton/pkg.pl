@@ -22,5 +22,5 @@ jobs:
           name: pkg-pl
       - name: Run CI
         run: |
-          nix develop --command \
+          nix develop --ignore-env --command \
             just ci
