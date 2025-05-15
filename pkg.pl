@@ -6,7 +6,18 @@
 :- use_module(library(pio)).
 :- use_module(library(files)).
 :- use_module(library(lists)).
+:- use_module(library(charsio)).
 :- use_module(library(format)).
+
+% Cleanly pass arguments to a script through environment variables
+run_script_with_args(ScriptName, Args) :-
+    maplist(define_script_arg, Args),
+    append(["sh scryer_libs/scripts/", ScriptName, ".sh"], Script),
+    shell(Script),
+    maplist(undefine_script_arg, Args).
+
+define_script_arg(Arg-Value) :- setenv(Arg, Value).
+undefine_script_arg(Arg-_) :- unsetenv(Arg).
 
 scryer_path(ScryerPath) :-
     (   getenv("SCRYER_PATH", ScryerPath) ->
@@ -30,7 +41,7 @@ parse_manifest_(Stream, Manifest) :-
 user:term_expansion((:- use_module(pkg(Package))), UsePackage) :-
     atom_chars(Package, PackageChars),
     scryer_path(ScryerPath),
-    append([ScryerPath, "/", PackageChars], PackagePath),
+    append([ScryerPath, "/packages/", PackageChars], PackagePath),
     append([PackagePath, "/", "scryer-manifest.pl"], ManifestPath),
     parse_manifest(ManifestPath, Manifest),
     member(main_file(MainFile), Manifest),
@@ -40,67 +51,75 @@ user:term_expansion((:- use_module(pkg(Package))), UsePackage) :-
         :- use_module(PackageMainFile)
     ).
 
-pkg_install :-
-    parse_manifest("scryer-manifest.pl", Manifest),
+% This creates the directory structure we want
+ensure_scryer_libs :-
     (   directory_exists("scryer_libs") ->
         true
     ;   make_directory_path("scryer_libs")
     ),
+    (   directory_exists("scryer_libs/packages") ->
+        true
+    ;   make_directory_path("scryer_libs/packages")
+    ),
+    (   directory_exists("scryer_libs/scripts") ->
+        true
+    ;   make_directory_path("scryer_libs/scripts"),
+        ensure_scripts
+    ).
+
+% Installs helper scripts
+ensure_scripts :-
+    findall(ScriptName-ScriptString, script_string(ScriptName, ScriptString), Scripts),
+    maplist(ensure_script, Scripts).
+
+ensure_script(Name-String) :-
+    append(["scryer_libs/scripts/", Name, ".sh"], Path),
+    phrase_to_file(String, Path).
+
+pkg_install :-
+    parse_manifest("scryer-manifest.pl", Manifest),
+    ensure_scryer_libs,
     setenv("SHELL", "/bin/sh"),
     setenv("GIT_ADVICE", "0"),
     (   member(dependencies(Deps), Manifest) ->
-        ensure_dependencies(Deps)
+        maplist(ensure_dependency, Deps)
     ;   true
     ).
 
-ensure_dependencies([]).
-ensure_dependencies([D|Ds]) :-
-    ensure_dependency(D),
-    ensure_dependencies(Ds).
-
-ensure_dependency(DependencyTerm) :-
-    current_output(Out),
-    phrase_to_stream(("Ensuring is installed: ", portray_clause_(DependencyTerm)), Out),
-    shell("rm --recursive --force scryer_libs/tmp"),
-    % Hell yeah, injection attack!
-    dependency_aq_command(DependencyTerm, Command),
-    shell(Command),
-    parse_manifest("scryer_libs/tmp/scryer-manifest.pl", Manifest),
-    member(name(Name), Manifest),
-    append(
-        [
-            "rm --recursive --force scryer_libs/", Name,
-            "; mv scryer_libs/tmp scryer_libs/", Name
-        ],
-        Command2
-    ),
-    shell(Command2).
-
-dependency_aq_command(git(X), Command) :- git_command(git(X), Command).
-dependency_aq_command(git(X, Y), Command) :- git_command(git(X, Y), Command).
-dependency_aq_command(path(X), Command) :- path_command(path(X), Command).
-
-git_command(git(Url), Command) :-
-    Segments = ["git clone --quiet --depth 1 --single-branch ", Url, " scryer_libs/tmp"],
-    append(Segments, Command).
-
-git_command(git(Url, branch(Branch)), Command) :-
-    Segments = [
-        "git clone --quiet --depth 1 --single-branch --branch ",
-        Branch, " ", Url,
-        " scryer_libs/tmp"
+ensure_dependency(dependency(Name, DependencyTerm)) :-
+    write_term_to_chars(DependencyTerm, [quoted(true), double_quotes(true)], DependencyTermChars),
+    CommonArgs = [
+        "DEPENDENCY_NAME"-Name,
+        "DEPENDENCY_TERM"-DependencyTermChars
     ],
-    append(Segments, Command).
+    ensure_dependency_extra_args(DependencyTerm, ExtraArgs),
+    append(CommonArgs, ExtraArgs, Args),
+    run_script_with_args("ensure_dependency", Args).
 
-git_command(git(Url, tag(Tag)), Command) :-
-    git_command(git(Url, branch(Tag)), Command).
+ensure_dependency_extra_args(git(Url), [
+    "DEPENDENCY_KIND"-"git_default",
+    "GIT_URL"-Url
+]).
+ensure_dependency_extra_args(git(Url,branch(Branch)), [
+    "DEPENDENCY_KIND"-"git_branch",
+    "GIT_URL"-Url,
+    "GIT_BRANCH"-Branch
+]).
+ensure_dependency_extra_args(git(Url,tag(Tag)), [
+    "DEPENDENCY_KIND"-"git_tag",
+    "GIT_URL"-Url,
+    "GIT_TAG"-Tag
+]).
+ensure_dependency_extra_args(git(Url,hash(Hash)), [
+    "DEPENDENCY_KIND"-"git_hash",
+    "GIT_URL"-Url,
+    "GIT_HASH"-Hash
+]).
+ensure_dependency_extra_args(path(Path), [
+    "DEPENDENCY_KIND"-"path",
+    "DEPENDENCY_PATH"-Path
+]).
 
-git_command(git(Url, hash(Hash)), Command) :-
-    CloneCommand = ["git clone --quiet --depth 1 --single-branch ", Url, " scryer_libs/tmp "],
-    GetHashCommitCommand = [" && cd scryer_libs/tmp  >/dev/null && git fetch --quiet --depth 1 origin ", Hash, " && git checkout --quiet ", Hash, " && cd ../  >/dev/null"],
-    append(CloneCommand, GetHashCommitCommand,  Segments), 
-    append(Segments, Command).
-
-path_command(path(Path), Command) :-
-    Segments = ["ln -rs ", Path, " scryer_libs/tmp"],
-    append(Segments, Command).
+% === Generated code start ===
+script_string("ensure_dependency", "#!/bin/sh\nset -eu\n\necho \"Ensuring is installed: ${DEPENDENCY_TERM}\"\n\nrm --recursive --force scryer_libs/tmp-package\n\nrelocate_tmp() {\n    rm --recursive --force \"scryer_libs/packages/${DEPENDENCY_NAME}\"\n    mv scryer_libs/tmp-package \"scryer_libs/packages/${DEPENDENCY_NAME}\"\n}\n\ncase \"${DEPENDENCY_KIND}\" in\n    git_default)\n        git clone \\\n            --quiet \\\n            --depth 1 \\\n            --single-branch \\\n            \"${GIT_URL}\" \\\n            scryer_libs/tmp-package\n        relocate_tmp\n        ;;\n    git_branch)\n        git clone \\\n            --quiet \\\n            --depth 1 \\\n            --single-branch \\\n            --branch \"${GIT_BRANCH}\" \\\n            \"${GIT_URL}\" \\\n            scryer_libs/tmp-package\n        relocate_tmp\n        ;;\n    git_tag)\n        git clone \\\n            --quiet \\\n            --depth 1 \\\n            --single-branch \\\n            --branch \"${GIT_TAG}\" \\\n            \"${GIT_URL}\" \\\n            scryer_libs/tmp-package\n        relocate_tmp\n        ;;\n    git_hash)\n        git clone \\\n            --quiet \\\n            --depth 1 \\\n            --single-branch \\\n            \"${GIT_URL}\" \\\n            scryer_libs/tmp-package\n        git -C scryer_libs/tmp-package fetch \\\n            --quiet \\\n            --depth 1 \\\n            origin \"${GIT_HASH}\"\n        git -C scryer_libs/tmp-package switch \\\n            --quiet \\\n            --detach \\\n            \"${GIT_HASH}\"\n        relocate_tmp\n        ;;\n    path)\n        ln -rsf \"${DEPENDENCY_PATH}\" \"scryer_libs/packages/${DEPENDENCY_NAME}\"\n        ;;\n    *)\n        echo \"Unknown dependency kind\"\n        exit 1\n        ;;\nesac\n").
+script_string("ensure_dependency", "#!/bin/sh\nset -eu\n\necho \"Ensuring is installed: ${DEPENDENCY_TERM}\"\n\nrm --recursive --force scryer_libs/tmp-package\n\nrelocate_tmp() {\n    rm --recursive --force \"scryer_libs/packages/${DEPENDENCY_NAME}\"\n    mv scryer_libs/tmp-package \"scryer_libs/packages/${DEPENDENCY_NAME}\"\n}\n\ncase \"${DEPENDENCY_KIND}\" in\n    git_default)\n        git clone \\\n            --quiet \\\n            --depth 1 \\\n            --single-branch \\\n            \"${GIT_URL}\" \\\n            scryer_libs/tmp-package\n        relocate_tmp\n        ;;\n    git_branch)\n        git clone \\\n            --quiet \\\n            --depth 1 \\\n            --single-branch \\\n            --branch \"${GIT_BRANCH}\" \\\n            \"${GIT_URL}\" \\\n            scryer_libs/tmp-package\n        relocate_tmp\n        ;;\n    git_tag)\n        git clone \\\n            --quiet \\\n            --depth 1 \\\n            --single-branch \\\n            --branch \"${GIT_TAG}\" \\\n            \"${GIT_URL}\" \\\n            scryer_libs/tmp-package\n        relocate_tmp\n        ;;\n    git_hash)\n        git clone \\\n            --quiet \\\n            --depth 1 \\\n            --single-branch \\\n            \"${GIT_URL}\" \\\n            scryer_libs/tmp-package\n        git -C scryer_libs/tmp-package fetch \\\n            --quiet \\\n            --depth 1 \\\n            origin \"${GIT_HASH}\"\n        git -C scryer_libs/tmp-package switch \\\n            --quiet \\\n            --detach \\\n            \"${GIT_HASH}\"\n        relocate_tmp\n        ;;\n    path)\n        ln -rsf \"${DEPENDENCY_PATH}\" \"scryer_libs/packages/${DEPENDENCY_NAME}\"\n        ;;\n    *)\n        echo \"Unknown dependency kind\"\n        exit 1\n        ;;\nesac\n").% === Generated code end ===
