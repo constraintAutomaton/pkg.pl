@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Unlicense */
 
-%:- module(pkg, [pkg_install/1]).
+:- module(pkg, [pkg_install/1]).
 
 :- use_module(library(os)).
 :- use_module(library(pio)).
@@ -238,7 +238,7 @@ install_step(Installation_Step, dependency(Name, DependencyTerm), LockDeps):-
         )
     ).
 
-ensure_integrity_hash(dependency(Name, _), Hash, Success):-
+ensure_integrity_hash(dependency(Name, _), Hash, Success) :-
     append(["scryer_libs/temp/integrity_hash_", Name], Result_Filename),
     Arg = [
         "DEPENDENCY_NAME"-Name,
