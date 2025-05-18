@@ -120,7 +120,7 @@ pkg_install(Results) :-
     append([InstallResults, LockResult], Results).
 
 materialize_lock_file(LockTerms) :-
-    open('manifest-lock', write, Stream),
+    open('manifest-lock.pl', write, Stream),
     write(Stream, '% WARNING: This file is auto-generated. Do NOT modify it manually.\n\n'),
     write_term(Stream, lock_dependencies(LockTerms), [double_quotes(true)]),
     write(Stream, '.\n'),
@@ -138,7 +138,11 @@ lock_execution([P|Ps], LockTerms, Results):-
     lock_execution(Ps, LockTerms0, Results0),
     execution_lock_step(P, LockTerm, Result),
     append([Results0, [Result]],Results),
-    append([LockTerms0, [LockTerm]], LockTerms).
+    (
+        LockTerm == null ->
+            true
+        ;   append([LockTerms0, [LockTerm]], LockTerms)
+    ).
 
 execution_step(install(do_nothing(dependency(Name, DependencyTerm))), install(do_nothing(dependency(Name, DependencyTerm)))-success(true)) :-
     current_output(Out),
@@ -148,32 +152,34 @@ execution_step(install(install_dependency(D)), Result) :-
     ensure_dependency(D, Sucess),
     Result = install(install_dependency(D))-sucess(Sucess).
 
-execution_step(install(install_locked_dependency(D)), Result) :- execution_step(install(install_dependency(D)), Result).
+execution_step(install(install_locked_dependency(D)), install(install_locked_dependency(D))-Sucess) :- 
+    execution_step(install(install_dependency(D)), _-Sucess).
 
-execution_lock_step(lock(dependency(Name, git(Url,hash(Hash)))), dependency(Name, git(Url,hash(Hash))), lock(dependency(Name, git(Url,hash(Hash))))-success(true)) :- !.
+execution_lock_step(lock(dependency(Name, git(Url,hash(Hash)))), dependency(Name, git(Url,hash(Hash)), IntegrityHash), lock(dependency(Name, git(Url,hash(Hash))))-success(Success)) :- 
+    ensure_integrity_hash(dependency(Name, git(Url,hash(Hash))), IntegrityHash, Success),
+    !.
 
-execution_lock_step(lock(dependency(Name, path(Path))), dependency(Name, path(Path)), lock(dependency(Name, path(Path)))-success(true)) :- !.
+execution_lock_step(lock(dependency(Name, path(Path))), dependency(Name, path(Path), IntegrityHash), lock(dependency(Name, path(Path)))-success(Success)) :-
+    ensure_integrity_hash(dependency(Name, path(Path)), IntegrityHash, Success).
 
 execution_lock_step(lock(dependency(Name, git(Url))), LockedDependency, Result) :-
-    ensure_lock(dependency(Name, git(Url)), Hash, Success),
-    (
-        Success == true ->
-            LockedDependency = dependency(Name, git(Url, hash(Hash))),
-            Result = lock(dependency(Name, git(Url)))-success(true)
-        ;   
-            LockedDependency = null,
-            Result = lock(dependency(Name, git(Url)))-success(false)
-    ).
+    execution_lock_step(lock(dependency(Name, git(Url, none))), LockedDependency, Result).
 
 execution_lock_step(lock(dependency(Name, git(Url, Opt))), LockedDependency, Result) :-
-    ensure_lock(dependency(Name, git(Url, Opt)), Hash, Success),
+    ensure_lock(dependency(Name, git(Url, Opt)), Hash, Success_Lock),
+    ensure_integrity_hash(dependency(Name, git(Url, Opt)), IntegrityHash, Success_Integrity),
     (
-        Success == true ->
-            LockedDependency = dependency(Name, git(Url, hash(Hash))),
-            Result = lock(dependency(Name, git(Url, Opt)))-success(true)
+        (Success_Lock == Success_Integrity,  Success_Lock == true) ->
+            LockedDependency = dependency(Name, git(Url, hash(Hash)), IntegrityHash),
+            Success=true
         ;   
             LockedDependency = null,
-            Result = lock(dependency(Name, git(Url, Opt)))-success(false)
+            Success=false
+    ),
+    (
+        Opt == none ->
+            Result = lock(dependency(Name, git(Url)))-success(Success)
+        ;   Result = lock(dependency(Name, git(Url, Opt)))-success(Success)
     ).
 
 
@@ -212,12 +218,21 @@ install_step(Installation_Step, dependency(Name, DependencyTerm), LockDeps):-
         )
     ).
 
-ensure_lock(dependency(Name, _), Hash, Success) :-
+ensure_integrity_hash(dependency(Name, _), Hash, Success):-
+    append(["scryer_libs/temp/integrity_hash_", Name], Result_Filename),
     Arg = [
-        "DEPENDENCY_NAME"-Name
+        "DEPENDENCY_NAME"-Name,
+        "RESULT_FILE"-Result_Filename
     ],
+    run_script_with_args("ensure_integrity_hash", Arg, Result_Filename, Hash, Success).
+
+ensure_lock(dependency(Name, _), Hash, Success) :-
     append(["scryer_libs/temp/lock_dependency_", Name], Result_Filename),
-    run_script_with_args("lock_dependency", Arg, Result_Filename, Hash, Success).
+    Arg = [
+        "DEPENDENCY_NAME"-Name,
+        "RESULT_FILE"-Result_Filename
+    ],
+    run_script_with_args("ensure_lock_dependency", Arg, Result_Filename, Hash, Success).
 
 ensure_dependency(dependency(Name, DependencyTerm), Success) :-
     write_term_to_chars(DependencyTerm, [quoted(true), double_quotes(true)], DependencyTermChars),
@@ -255,5 +270,6 @@ ensure_dependency_extra_args(path(Path), [
 
 % === Generated code start ===
 script_string("ensure_dependency", "#!/bin/sh\nset -eu\n\necho \"Ensuring is installed: ${DEPENDENCY_TERM}\"\n\ncase \"${DEPENDENCY_KIND}\" in\n    git_default)\n        git clone \\\n            --quiet \\\n            --depth 1 \\\n            --single-branch \\\n            \"${GIT_URL}\" \\\n            scryer_libs/packages/${DEPENDENCY_NAME}\n        ;;\n    git_branch)\n        git clone \\\n            --quiet \\\n            --depth 1 \\\n            --single-branch \\\n            --branch \"${GIT_BRANCH}\" \\\n            \"${GIT_URL}\" \\\n            scryer_libs/packages/${DEPENDENCY_NAME}\n        ;;\n    git_tag)\n        git clone \\\n            --quiet \\\n            --depth 1 \\\n            --single-branch \\\n            --branch \"${GIT_TAG}\" \\\n            \"${GIT_URL}\" \\\n            scryer_libs/packages/${DEPENDENCY_NAME}\n        ;;\n    git_hash)\n        git clone \\\n            --quiet \\\n            --depth 1 \\\n            --single-branch \\\n            \"${GIT_URL}\" \\\n            scryer_libs/packages/${DEPENDENCY_NAME}\n        git -C scryer_libs/packages/${DEPENDENCY_NAME} fetch \\\n            --quiet \\\n            --depth 1 \\\n            origin \"${GIT_HASH}\"\n        git -C scryer_libs/packages/${DEPENDENCY_NAME} switch \\\n            --quiet \\\n            --detach \\\n            \"${GIT_HASH}\"\n        ;;\n    path)\n        ln -rsf \"${DEPENDENCY_PATH}\" \"scryer_libs/packages/${DEPENDENCY_NAME}\"\n        ;;\n    *)\n        echo \"Unknown dependency kind\"\n        exit 1\n        ;;\nesac\n").
-script_string("lock_dependency", "#!/bin/sh\nset -eu\n\ncd scryer_libs/packages/${DEPENDENCY_NAME} && echo \"result(\\\"$(git rev-parse HEAD)\\\").\" > ../../temp/lock_dependency_${DEPENDENCY_NAME}").
+script_string("ensure_integrity_hash", "#!/bin/sh\nset -eu\n\nCHECKSUM=$(find scryer_libs/packages/${DEPENDENCY_NAME} -type f -print0 | sort -z | xargs -0 sha1sum | sha1sum | awk \'{print $1}\')\necho \"result(\\\"$CHECKSUM\\\").\" > ${RESULT_FILE}").
+script_string("ensure_lock_dependency", "#!/bin/sh\nset -eu\n\nGIT_HASH=$(cd scryer_libs/packages/${DEPENDENCY_NAME} && git rev-parse HEAD)\necho \"result(\\\"$GIT_HASH\\\").\" > ${RESULT_FILE}").
 % === Generated code end ===
