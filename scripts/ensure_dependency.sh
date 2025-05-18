@@ -5,33 +5,36 @@ echo "Ensuring is installed: ${DEPENDENCY_TERM}"
 
 case "${DEPENDENCY_KIND}" in
     git_default)
-        git clone \
+        (git clone \
             --quiet \
             --depth 1 \
             --single-branch \
             "${GIT_URL}" \
-            scryer_libs/packages/${DEPENDENCY_NAME}
+            scryer_libs/packages/${DEPENDENCY_NAME} && \
+            touch scryer_libs/temp/parallel_lock_${DEPENDENCY_NAME}) &
         ;;
     git_branch)
-        git clone \
+        (git clone \
             --quiet \
             --depth 1 \
             --single-branch \
             --branch "${GIT_BRANCH}" \
             "${GIT_URL}" \
-            scryer_libs/packages/${DEPENDENCY_NAME}
+            scryer_libs/packages/${DEPENDENCY_NAME} && \
+            touch scryer_libs/temp/parallel_lock_${DEPENDENCY_NAME}) &
         ;;
     git_tag)
-        git clone \
+        (git clone \
             --quiet \
             --depth 1 \
             --single-branch \
             --branch "${GIT_TAG}" \
             "${GIT_URL}" \
-            scryer_libs/packages/${DEPENDENCY_NAME}
+            scryer_libs/packages/${DEPENDENCY_NAME} && \
+            touch scryer_libs/temp/parallel_lock_${DEPENDENCY_NAME}) &
         ;;
     git_hash)
-        git clone \
+        (git clone \
             --quiet \
             --depth 1 \
             --single-branch \
@@ -44,10 +47,12 @@ case "${DEPENDENCY_KIND}" in
         git -C scryer_libs/packages/${DEPENDENCY_NAME} switch \
             --quiet \
             --detach \
-            "${GIT_HASH}"
+            "${GIT_HASH}" && \
+            touch scryer_libs/temp/parallel_lock_${DEPENDENCY_NAME}) &
         ;;
     path)
-        ln -rsf "${DEPENDENCY_PATH}" "scryer_libs/packages/${DEPENDENCY_NAME}"
+        (ln -rsf "${DEPENDENCY_PATH}" "scryer_libs/packages/${DEPENDENCY_NAME}" && \
+            touch scryer_libs/temp/parallel_lock_${DEPENDENCY_NAME}) &
         ;;
     *)
         echo "Unknown dependency kind"

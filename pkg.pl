@@ -115,9 +115,11 @@ pkg_install(Results) :-
     ;   true
     ),
     installation_execution(IPlan, InstallResults),
+    installation_steps_ended(IPlan),
     lock_execution(LPlan, LockTerms, LockResult),
     materialize_lock_file(LockTerms),
-    append([InstallResults, LockResult], Results).
+    append([InstallResults, LockResult], Results),
+    delete_directory("scryer_libs/temp").
 
 materialize_lock_file(LockTerms) :-
     open('manifest-lock.pl', write, Stream),
@@ -142,6 +144,24 @@ lock_execution([P|Ps], LockTerms, Results):-
         LockTerm == null ->
             true
         ;   append([LockTerms0, [LockTerm]], LockTerms)
+    ).
+
+installation_steps_ended([]).
+installation_steps_ended([P|Ps]):-
+    dependency_installed(P),
+    installation_steps_ended(Ps).
+
+dependency_installed(install(do_nothing(_))).
+
+dependency_installed(install(install_locked_dependency(dependency(Name, _)))):-
+    dependency_installed(install(install_dependency(dependency(Name, _)))).
+
+dependency_installed(install(install_dependency(dependency(Name, _)))) :-
+    append(["scryer_libs/temp/parallel_lock_", Name], LockFileName),
+    (
+        file_exists(LockFileName)->
+            delete_file(LockFileName)
+        ; dependency_installed(install(install_dependency(dependency(Name, _))))
     ).
 
 execution_step(install(do_nothing(dependency(Name, DependencyTerm))), install(do_nothing(dependency(Name, DependencyTerm)))-success(true)) :-
@@ -269,7 +289,7 @@ ensure_dependency_extra_args(path(Path), [
 ]).
 
 % === Generated code start ===
-script_string("ensure_dependency", "#!/bin/sh\nset -eu\n\necho \"Ensuring is installed: ${DEPENDENCY_TERM}\"\n\ncase \"${DEPENDENCY_KIND}\" in\n    git_default)\n        git clone \\\n            --quiet \\\n            --depth 1 \\\n            --single-branch \\\n            \"${GIT_URL}\" \\\n            scryer_libs/packages/${DEPENDENCY_NAME}\n        ;;\n    git_branch)\n        git clone \\\n            --quiet \\\n            --depth 1 \\\n            --single-branch \\\n            --branch \"${GIT_BRANCH}\" \\\n            \"${GIT_URL}\" \\\n            scryer_libs/packages/${DEPENDENCY_NAME}\n        ;;\n    git_tag)\n        git clone \\\n            --quiet \\\n            --depth 1 \\\n            --single-branch \\\n            --branch \"${GIT_TAG}\" \\\n            \"${GIT_URL}\" \\\n            scryer_libs/packages/${DEPENDENCY_NAME}\n        ;;\n    git_hash)\n        git clone \\\n            --quiet \\\n            --depth 1 \\\n            --single-branch \\\n            \"${GIT_URL}\" \\\n            scryer_libs/packages/${DEPENDENCY_NAME}\n        git -C scryer_libs/packages/${DEPENDENCY_NAME} fetch \\\n            --quiet \\\n            --depth 1 \\\n            origin \"${GIT_HASH}\"\n        git -C scryer_libs/packages/${DEPENDENCY_NAME} switch \\\n            --quiet \\\n            --detach \\\n            \"${GIT_HASH}\"\n        ;;\n    path)\n        ln -rsf \"${DEPENDENCY_PATH}\" \"scryer_libs/packages/${DEPENDENCY_NAME}\"\n        ;;\n    *)\n        echo \"Unknown dependency kind\"\n        exit 1\n        ;;\nesac\n").
+script_string("ensure_dependency", "#!/bin/sh\nset -eu\n\necho \"Ensuring is installed: ${DEPENDENCY_TERM}\"\n\ncase \"${DEPENDENCY_KIND}\" in\n    git_default)\n        (git clone \\\n            --quiet \\\n            --depth 1 \\\n            --single-branch \\\n            \"${GIT_URL}\" \\\n            scryer_libs/packages/${DEPENDENCY_NAME} && \\\n            touch scryer_libs/temp/parallel_lock_${DEPENDENCY_NAME}) &\n        ;;\n    git_branch)\n        (git clone \\\n            --quiet \\\n            --depth 1 \\\n            --single-branch \\\n            --branch \"${GIT_BRANCH}\" \\\n            \"${GIT_URL}\" \\\n            scryer_libs/packages/${DEPENDENCY_NAME} && \\\n            touch scryer_libs/temp/parallel_lock_${DEPENDENCY_NAME}) &\n        ;;\n    git_tag)\n        (git clone \\\n            --quiet \\\n            --depth 1 \\\n            --single-branch \\\n            --branch \"${GIT_TAG}\" \\\n            \"${GIT_URL}\" \\\n            scryer_libs/packages/${DEPENDENCY_NAME} && \\\n            touch scryer_libs/temp/parallel_lock_${DEPENDENCY_NAME}) &\n        ;;\n    git_hash)\n        (git clone \\\n            --quiet \\\n            --depth 1 \\\n            --single-branch \\\n            \"${GIT_URL}\" \\\n            scryer_libs/packages/${DEPENDENCY_NAME}\n        git -C scryer_libs/packages/${DEPENDENCY_NAME} fetch \\\n            --quiet \\\n            --depth 1 \\\n            origin \"${GIT_HASH}\"\n        git -C scryer_libs/packages/${DEPENDENCY_NAME} switch \\\n            --quiet \\\n            --detach \\\n            \"${GIT_HASH}\" && \\\n            touch scryer_libs/temp/parallel_lock_${DEPENDENCY_NAME}) &\n        ;;\n    path)\n        (ln -rsf \"${DEPENDENCY_PATH}\" \"scryer_libs/packages/${DEPENDENCY_NAME}\" && \\\n            touch scryer_libs/temp/parallel_lock_${DEPENDENCY_NAME}) &\n        ;;\n    *)\n        echo \"Unknown dependency kind\"\n        exit 1\n        ;;\nesac\n").
 script_string("ensure_integrity_hash", "#!/bin/sh\nset -eu\n\nCHECKSUM=$(find scryer_libs/packages/${DEPENDENCY_NAME} -type f -print0 | sort -z | xargs -0 sha1sum | sha1sum | awk \'{print $1}\')\necho \"result(\\\"$CHECKSUM\\\").\" > ${RESULT_FILE}").
 script_string("ensure_lock_dependency", "#!/bin/sh\nset -eu\n\nGIT_HASH=$(cd scryer_libs/packages/${DEPENDENCY_NAME} && git rev-parse HEAD)\necho \"result(\\\"$GIT_HASH\\\").\" > ${RESULT_FILE}").
 % === Generated code end ===
