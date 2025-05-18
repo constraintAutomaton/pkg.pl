@@ -1,0 +1,19 @@
+default:
+    @just --list
+
+build:
+    cd util_packages && scryer-prolog -f pkg.pl -g "catch(pkg_install(_), _, halt(1)), halt"
+
+test:
+    #!/bin/sh
+    set -eu
+
+    for dir in case*/; do
+        if [ -f "${dir}main.pl" ]; then
+            echo "Running test of ${dir}"
+            (cd ${dir} && scryer-prolog main.pl -g "main .")
+        else
+            echo "${dir}: main.pl not found"
+            exit 1
+        fi
+    done
