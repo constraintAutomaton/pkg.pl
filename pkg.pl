@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Unlicense */
 
-:- module(pkg, [pkg_install/1]).
+%:- module(pkg, [pkg_install/1]).
 
 :- use_module(library(os)).
 :- use_module(library(pio)).
@@ -11,6 +11,7 @@
 :- use_module(library(debug)).
 
 % Cleanly pass arguments to a script through environment variables
+
 run_script_with_args(ScriptName, Args, Success) :-
     maplist(define_script_arg, Args),
     append(["sh scryer_libs/scripts/", ScriptName, ".sh"], Script),
@@ -20,6 +21,20 @@ run_script_with_args(ScriptName, Args, Success) :-
         ;   Success = false
     ),
     maplist(undefine_script_arg, Args).
+
+run_script_with_args(ScriptName, Args, Result_Filename, Result, Success) :-
+    run_script_with_args(ScriptName, Args, Success),
+    ( 
+        Success == true -> 
+            result_from_file(Result_Filename, Result)
+        ;   Result = failure
+    ).
+
+result_from_file(Result_Filename, Result) :-
+    open(Result_Filename, read, Stream),
+    read(Stream, result(Result)),
+    close(Stream),
+    delete_file(Result_Filename).
 
 define_script_arg(Arg-Value) :- setenv(Arg, Value).
 undefine_script_arg(Arg-_) :- unsetenv(Arg).
@@ -72,10 +87,8 @@ ensure_scryer_libs :-
         ensure_scripts
     ),
     (   directory_exists("scryer_libs/temp") ->
-        delete_directory("scryer_libs/temp"),
-        make_directory_path("scryer_libs/temp")
-    ;   make_directory_path("scryer_libs/temp"),
-        ensure_scripts
+        true
+    ;   make_directory_path("scryer_libs/temp")
     ).
 
 % Installs helper scripts
@@ -101,28 +114,67 @@ pkg_install(Results) :-
         plan(logical_plan(IPlan, LPlan), Deps, LockDeps)
     ;   true
     ),
-    execution(IPlan, Results).
+    installation_execution(IPlan, InstallResults),
+    lock_execution(LPlan, LockTerms, LockResult),
+    materialize_lock_file(LockTerms),
+    append([InstallResults, LockResult], Results).
 
-execution([], []).
-execution([P|Ps], Results):-
-    execution(Ps, Result0),
+materialize_lock_file(LockTerms) :-
+    open('manifest-lock', write, Stream),
+    write(Stream, '% WARNING: This file is auto-generated. Do NOT modify it manually.\n\n'),
+    write_term(Stream, lock_dependencies(LockTerms), [double_quotes(true)]),
+    write(Stream, '.\n'),
+    close(Stream).
+
+installation_execution([], []).
+installation_execution([P|Ps], Results):-
+    installation_execution(Ps, Result0),
     execution_step(P, Result),
     append([Result0, [Result]],Results).
 
+lock_execution([], [], []).
 
-execution_step(step(do_nothing(dependency(Name, DependencyTerm))), step(do_nothing(dependency(Name, DependencyTerm)))-success(true)) :-
+lock_execution([P|Ps], LockTerms, Results):-
+    lock_execution(Ps, LockTerms0, Results0),
+    execution_lock_step(P, LockTerm, Result),
+    append([Results0, [Result]],Results),
+    append([LockTerms0, [LockTerm]], LockTerms).
+
+execution_step(install(do_nothing(dependency(Name, DependencyTerm))), install(do_nothing(dependency(Name, DependencyTerm)))-success(true)) :-
     current_output(Out),
     phrase_to_stream(("Already installed: ", portray_clause_(dependency(Name, DependencyTerm))), Out).
 
-execution_step(step(install_dependency(D)), Result) :-
+execution_step(install(install_dependency(D)), Result) :-
     ensure_dependency(D, Sucess),
-    Result = step(install_dependency(D))-sucess(Sucess).
+    Result = install(install_dependency(D))-sucess(Sucess).
 
-execution_step(step(install_locked_dependency(D)), Result) :- execution_step(step(install_dependency(D)), Result).
+execution_step(install(install_locked_dependency(D)), Result) :- execution_step(install(install_dependency(D)), Result).
 
-execution_step(step(lock(do_nothing(D))), step(lock(do_nothing(D)))-success(true)).
-execution_step(step(lock(do_nothing(git(Url,hash(Hash))))), _).
-    
+execution_lock_step(lock(dependency(Name, git(Url,hash(Hash)))), dependency(Name, git(Url,hash(Hash))), lock(dependency(Name, git(Url,hash(Hash))))-success(true)) :- !.
+
+execution_lock_step(lock(dependency(Name, path(Path))), dependency(Name, path(Path)), lock(dependency(Name, path(Path)))-success(true)) :- !.
+
+execution_lock_step(lock(dependency(Name, git(Url))), LockedDependency, Result) :-
+    ensure_lock(dependency(Name, git(Url)), Hash, Success),
+    (
+        Success == true ->
+            LockedDependency = dependency(Name, git(Url, hash(Hash))),
+            Result = lock(dependency(Name, git(Url)))-success(true)
+        ;   
+            LockedDependency = null,
+            Result = lock(dependency(Name, git(Url)))-success(false)
+    ).
+
+execution_lock_step(lock(dependency(Name, git(Url, Opt))), LockedDependency, Result) :-
+    ensure_lock(dependency(Name, git(Url, Opt)), Hash, Success),
+    (
+        Success == true ->
+            LockedDependency = dependency(Name, git(Url, hash(Hash))),
+            Result = lock(dependency(Name, git(Url, Opt)))-success(true)
+        ;   
+            LockedDependency = null,
+            Result = lock(dependency(Name, git(Url, Opt)))-success(false)
+    ).
 
 
 lock_dependency_with_name([dependency(Name, X, _)|_], dependency(Name, _), dependency(Name, X)) :- !.
@@ -130,41 +182,42 @@ lock_dependency_with_name([dependency(Name, X, _)|_], dependency(Name, _), depen
 lock_dependency_with_name([_|Ls], dependency(Name, _), Dep) :-
     lock_dependency_with_name(Ls, dependency(Name, _), Dep).
 
-plan(Plan, Ds, LockDeps) :-
+plan(logical_plan(IPlan, LPlan), Ds, LockDeps) :-
     installation_plan(IPlan, Ds, LockDeps),
-    lock_plan(LPlan, IPlan),
-    Plan = logical_plan(IPlan, []).
+    lock_plan(LPlan, Ds).
 
 installation_plan([], [], _).
 
 installation_plan(Plan, [D|Ds], LockDeps) :-
     installation_plan(Plan0, Ds, LockDeps),
-    step(Step, D, LockDeps),
-    append([Plan0, [Step]], Plan).
+    install_step(Installation_Step, D, LockDeps),
+    append([Plan0, [Installation_Step]], Plan).
 
 lock_plan([], []).
 
-lock_plan(LockPlan, [P|Ps]):-
-    lock_plan(LockPlan0, Ps),
-    lock_step(P, Step),
-    append([LockPlan0, [Step]], LockPlan).
+lock_plan(Plan, [D|Ds]):-
+    lock_plan(Plan0, Ds),
+    append([Plan0, [lock(D)]], Plan).
 
 
-lock_step(step(do_nothing(D)), step(do_nothing(lock(D)))).
-lock_step(step(install_dependency(git(Url,hash(Hash)))), step(lock(do_nothing(git(Url,hash(Hash)))))).
-lock_step(step(install_dependency(D)), step(lock(D))).
-
-step(Step, dependency(Name, DependencyTerm), LockDeps):-
+install_step(Installation_Step, dependency(Name, DependencyTerm), LockDeps):-
     append(["scryer_libs/packages/", Name], DepRepo),
     (
     directory_exists(DepRepo) ->
-        Step = step(do_nothing(dependency(Name, DependencyTerm)))
+        Installation_Step = install(do_nothing(dependency(Name, DependencyTerm)))
     ;   (
             lock_dependency_with_name(LockDeps, dependency(Name, DependencyTerm), D) ->
-                Step = step(install_locked_dependency(D))
-            ;   Step = step(install_dependency(dependency(Name, DependencyTerm)))
+                Installation_Step = install(install_locked_dependency(D))
+            ;   Installation_Step = install(install_dependency(dependency(Name, DependencyTerm)))
         )
     ).
+
+ensure_lock(dependency(Name, _), Hash, Success) :-
+    Arg = [
+        "DEPENDENCY_NAME"-Name
+    ],
+    append(["scryer_libs/temp/lock_dependency_", Name], Result_Filename),
+    run_script_with_args("lock_dependency", Arg, Result_Filename, Hash, Success).
 
 ensure_dependency(dependency(Name, DependencyTerm), Success) :-
     write_term_to_chars(DependencyTerm, [quoted(true), double_quotes(true)], DependencyTermChars),
@@ -201,6 +254,6 @@ ensure_dependency_extra_args(path(Path), [
 ]).
 
 % === Generated code start ===
-script_string("ensure_dependency", "#!/bin/sh\nset -eu\n\necho \"Ensuring is installed: ${DEPENDENCY_TERM}\"\n\ncase \"${DEPENDENCY_KIND}\" in\n    git_default)\n        git clone \\\n            --quiet \\\n            --depth 1 \\\n            --single-branch \\\n            \"${GIT_URL}\" \\\n            scryer_libs/packages/${DEPENDENCY_NAME}\n        ;;\n    git_branch)\n        git clone \\\n            --quiet \\\n            --depth 1 \\\n            --single-branch \\\n            --branch \"${GIT_BRANCH}\" \\\n            \"${GIT_URL}\" \\\n            scryer_libs/packages/${DEPENDENCY_NAME}\n        ;;\n    git_tag)\n        git clone \\\n            --quiet \\\n            --depth 1 \\\n            --single-branch \\\n            --branch \"${GIT_TAG}\" \\\n            \"${GIT_URL}\" \\\n            scryer_libs/packages/${DEPENDENCY_NAME}\n        ;;\n    git_hash)\n        git clone \\\n            --quiet \\\n            --depth 1 \\\n            --single-branch \\\n            \"${GIT_URL}\" \\\n            scryer_libs/${DEPENDENCY_NAME}\n        git -C scryer_libs/packages/${DEPENDENCY_NAME} fetch \\\n            --quiet \\\n            --depth 1 \\\n            origin \"${GIT_HASH}\"\n        git -C scryer_libs/packages/${DEPENDENCY_NAME} switch \\\n            --quiet \\\n            --detach \\\n            \"${GIT_HASH}\"\n        ;;\n    path)\n        ln -rsf \"${DEPENDENCY_PATH}\" \"scryer_libs/packages/${DEPENDENCY_NAME}\"\n        ;;\n    *)\n        echo \"Unknown dependency kind\"\n        exit 1\n        ;;\nesac\n").
-script_string("lock_dependency", "#!/bin/sh\nset -eu\n\ncd scryer_libs/packages/${DEPENDENCY_NAME}\n\necho \"result(\\\"$(git rev-parse HEAD)\\\").\" > scryer_libs/temp/lock_dependency_${DEPENDENCY_NAME}").
+script_string("ensure_dependency", "#!/bin/sh\nset -eu\n\necho \"Ensuring is installed: ${DEPENDENCY_TERM}\"\n\ncase \"${DEPENDENCY_KIND}\" in\n    git_default)\n        git clone \\\n            --quiet \\\n            --depth 1 \\\n            --single-branch \\\n            \"${GIT_URL}\" \\\n            scryer_libs/packages/${DEPENDENCY_NAME}\n        ;;\n    git_branch)\n        git clone \\\n            --quiet \\\n            --depth 1 \\\n            --single-branch \\\n            --branch \"${GIT_BRANCH}\" \\\n            \"${GIT_URL}\" \\\n            scryer_libs/packages/${DEPENDENCY_NAME}\n        ;;\n    git_tag)\n        git clone \\\n            --quiet \\\n            --depth 1 \\\n            --single-branch \\\n            --branch \"${GIT_TAG}\" \\\n            \"${GIT_URL}\" \\\n            scryer_libs/packages/${DEPENDENCY_NAME}\n        ;;\n    git_hash)\n        git clone \\\n            --quiet \\\n            --depth 1 \\\n            --single-branch \\\n            \"${GIT_URL}\" \\\n            scryer_libs/packages/${DEPENDENCY_NAME}\n        git -C scryer_libs/packages/${DEPENDENCY_NAME} fetch \\\n            --quiet \\\n            --depth 1 \\\n            origin \"${GIT_HASH}\"\n        git -C scryer_libs/packages/${DEPENDENCY_NAME} switch \\\n            --quiet \\\n            --detach \\\n            \"${GIT_HASH}\"\n        ;;\n    path)\n        ln -rsf \"${DEPENDENCY_PATH}\" \"scryer_libs/packages/${DEPENDENCY_NAME}\"\n        ;;\n    *)\n        echo \"Unknown dependency kind\"\n        exit 1\n        ;;\nesac\n").
+script_string("lock_dependency", "#!/bin/sh\nset -eu\n\ncd scryer_libs/packages/${DEPENDENCY_NAME} && echo \"result(\\\"$(git rev-parse HEAD)\\\").\" > ../../temp/lock_dependency_${DEPENDENCY_NAME}").
 % === Generated code end ===

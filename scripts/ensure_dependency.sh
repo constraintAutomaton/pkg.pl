@@ -36,7 +36,7 @@ case "${DEPENDENCY_KIND}" in
             --depth 1 \
             --single-branch \
             "${GIT_URL}" \
-            scryer_libs/${DEPENDENCY_NAME}
+            scryer_libs/packages/${DEPENDENCY_NAME}
         git -C scryer_libs/packages/${DEPENDENCY_NAME} fetch \
             --quiet \
             --depth 1 \
