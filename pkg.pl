@@ -151,28 +151,28 @@ installation_steps_ended([P|Ps]):-
     dependency_installed(P),
     installation_steps_ended(Ps).
 
-dependency_installed(install(do_nothing(_))).
+dependency_installed(do_nothing(_)).
 
-dependency_installed(install(install_locked_dependency(dependency(Name, _)))):-
-    dependency_installed(install(install_dependency(dependency(Name, _)))).
+dependency_installed(install_locked_dependency(dependency(Name, _))):-
+    dependency_installed(install_dependency(dependency(Name, _))).
 
-dependency_installed(install(install_dependency(dependency(Name, _)))) :-
+dependency_installed(install_dependency(dependency(Name, _))) :-
     append(["scryer_libs/temp/parallel_lock_", Name], LockFileName),
     (
         file_exists(LockFileName)->
             delete_file(LockFileName)
-        ; dependency_installed(install(install_dependency(dependency(Name, _))))
+        ; dependency_installed(install_dependency(dependency(Name, _)))
     ).
 
-execution_step(install(do_nothing(dependency(Name, DependencyTerm))), install(do_nothing(dependency(Name, DependencyTerm)))-success(true)) :-
+execution_step(do_nothing(dependency(Name, DependencyTerm)), do_nothing(dependency(Name, DependencyTerm))-success(true)) :-
     current_output(Out),
     phrase_to_stream(("Already installed: ", portray_clause_(dependency(Name, DependencyTerm))), Out).
 
-execution_step(install(install_dependency(D)), Result) :-
+execution_step(install_dependency(D), Result) :-
     ensure_dependency(D, Sucess),
-    Result = install(install_dependency(D))-sucess(Sucess).
+    Result = install_dependency(D)-success(Sucess).
 
-execution_step(install(install_locked_dependency(D)), install(install_locked_dependency(D))-Sucess) :- 
+execution_step(install_locked_dependency(D), install_locked_dependency(D)-Sucess) :- 
     execution_step(install(install_dependency(D)), _-Sucess).
 
 execution_lock_step(lock(dependency(Name, git(Url,hash(Hash)))), dependency(Name, git(Url,hash(Hash)), IntegrityHash), lock(dependency(Name, git(Url,hash(Hash))))-success(Success)) :- 
@@ -230,11 +230,11 @@ install_step(Installation_Step, dependency(Name, DependencyTerm), LockDeps):-
     append(["scryer_libs/packages/", Name], DepRepo),
     (
     directory_exists(DepRepo) ->
-        Installation_Step = install(do_nothing(dependency(Name, DependencyTerm)))
+        Installation_Step = do_nothing(dependency(Name, DependencyTerm))
     ;   (
             lock_dependency_with_name(LockDeps, dependency(Name, DependencyTerm), D) ->
-                Installation_Step = install(install_locked_dependency(D))
-            ;   Installation_Step = install(install_dependency(dependency(Name, DependencyTerm)))
+                Installation_Step = install_locked_dependency(D)
+            ;   Installation_Step = install_dependency(dependency(Name, DependencyTerm))
         )
     ).
 
