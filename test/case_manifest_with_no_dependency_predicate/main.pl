@@ -4,7 +4,7 @@
 
 main :-
     shell("rm -rf scryer_libs && rm -f manifest-lock.pl"),
-    run_tests,
+    run_tests([halt(false)]),
     shell("rm -rf scryer_libs && rm -f manifest-lock.pl"), 
     halt.
 
