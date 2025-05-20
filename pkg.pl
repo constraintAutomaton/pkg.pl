@@ -166,11 +166,11 @@ execution_step(do_nothing(dependency(Name, DependencyTerm)), do_nothing(dependen
     phrase_to_stream(("Already installed: ", portray_clause_(dependency(Name, DependencyTerm))), Out).
 
 execution_step(install_dependency(D), Result) :-
-    ensure_dependency(D, Sucess),
-    Result = install_dependency(D)-success(Sucess).
+    ensure_dependency(D, Success),
+    Result = install_dependency(D)-success(Success).
 
-execution_step(install_locked_dependency(D), install_locked_dependency(D)-Sucess) :- 
-    execution_step(install(install_dependency(D)), _-Sucess).
+execution_step(install_locked_dependency(D), install_locked_dependency(D)-Success) :- 
+    execution_step(install_dependency(D), _-Success).
 
 execution_lock_step(lock(dependency(Name, git(Url,hash(Hash)))), dependency(Name, git(Url,hash(Hash)), IntegrityHash), lock(dependency(Name, git(Url,hash(Hash))))-success(Success)) :- 
     ensure_integrity_hash(dependency(Name, git(Url,hash(Hash))), IntegrityHash, Success),
