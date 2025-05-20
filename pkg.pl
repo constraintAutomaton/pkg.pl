@@ -58,7 +58,7 @@ parse_manifest_(Stream, Manifest) :-
         parse_manifest_(Stream, Ms)
     ).
 
-user:term_expansion((:- use_module(pkg(Package))), UsePackage) :-
+user:term_expansion((:- use_module(pkg(Package))), (:- use_module(PackageMainFile))) :-
     atom_chars(Package, PackageChars),
     scryer_path(ScryerPath),
     append([ScryerPath, "/packages/", PackageChars], PackagePath),
@@ -66,10 +66,7 @@ user:term_expansion((:- use_module(pkg(Package))), UsePackage) :-
     parse_manifest(ManifestPath, Manifest),
     member(main_file(MainFile), Manifest),
     append([PackagePath, "/", MainFile], PackageMainFileChars),
-    atom_chars(PackageMainFile, PackageMainFileChars),
-    UsePackage = (
-        :- use_module(PackageMainFile)
-    ).
+    atom_chars(PackageMainFile, PackageMainFileChars).
 
 % This creates the directory structure we want
 ensure_scryer_libs :-

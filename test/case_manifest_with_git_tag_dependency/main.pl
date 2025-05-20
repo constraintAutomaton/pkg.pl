@@ -16,8 +16,8 @@ main :-
 test("the package report is valid", (
         pkg_install(X),
         X = [
-        install_dependency(dependency("test", git("https://github.com/constraintAutomaton/test-prolog-package-manager.git")))-success(true),
-        lock(dependency("test", git("https://github.com/constraintAutomaton/test-prolog-package-manager.git")))-success(true)
+        install_dependency(dependency("test", git("https://github.com/constraintAutomaton/test-prolog-package-manager.git", tag("tag"))))-success(true),
+        lock(dependency("test", git("https://github.com/constraintAutomaton/test-prolog-package-manager.git", tag("tag"))))-success(true)
         ]
     )
 ).
