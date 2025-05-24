@@ -7,11 +7,8 @@ build:
 test:
     #!/bin/sh
     set -eu
-
-    finalStatus=0
-
+    
     for dir in test*/; do
         (cd "$dir" && just test)
     done
     
-    exit $finalStatus
