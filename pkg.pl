@@ -125,10 +125,21 @@ materialize_lock_file(LockTerms) :-
     close(Stream).
 
 installation_execution(Plan, Results):-
-    ensure_dependencies(Plan, _Success),
+    ensure_dependencies(Plan, Success),
+    (
+        Success == true ->
+        fail_installation(Plan, [], Results)
+        ;   true
+
+    ),
     parse_install_report(Result_Report),
     installation_report(Plan, Result_Report, [], ResultsReversed),
     reverse(ResultsReversed, Results).
+
+fail_installation([], Acc, Acc).
+fail_installation([P|Ps], Acc, Results) :-
+    Result = P-error("installation script failed"),
+    fail_installation(Ps, [Result|Acc], Result).
 
 installation_report([], _, Acc, Acc).
 installation_report([P|Ps], Result_Report, Acc, Results):-
@@ -273,7 +284,7 @@ lock_dependency_with_name([_|Ls], dependency(Name, _), Dep) :-
 
 plan(logical_plan(IPlan, LPlan), Ds, LockDeps) :-
     installation_plan(IPlan, Ds, LockDeps),
-    lock_plan(LPlan, Ds).
+    lock_plan(IPlan, [], LPlan).
 
 installation_plan([], [], _).
 
@@ -282,12 +293,15 @@ installation_plan(Plan, [D|Ds], LockDeps) :-
     install_step(Installation_Step, D, LockDeps),
     append([Plan0, [Installation_Step]], Plan).
 
-lock_plan([], []).
+lock_plan([], Acc, Acc).
 
-lock_plan(Plan, [D|Ds]):-
-    lock_plan(Plan0, Ds),
-    append([Plan0, [lock(D)]], Plan).
+lock_plan([IP|IPs], Acc, LPlan):-
+    lock_step(IP, Step),
+    lock_plan(IPs, [Step|Acc], LPlan),
 
+lock_step(do_nothing(D), do_nothing(D)).
+lock_step(install_dependency(D), lock(D)).
+lock_step(install_locked_dependency(D), do_nothing(D)).
 
 install_step(Installation_Step, dependency(Name, DependencyTerm), LockDeps):-
     append(["scryer_libs/packages/", Name], DepRepo),
