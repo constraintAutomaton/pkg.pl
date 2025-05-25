@@ -28,10 +28,10 @@ for dependency in "${DEPENDENCIES[@]}"; do
 
                 if [ -z "$error_output" ]; then
                     flock scryer_libs/temp/install_resp.pl.lock \
-                        -c "echo 'result(${dependency_name}, success).' >> scryer_libs/temp/install_resp.pl"
+                        -c "echo \"result(\\\"${dependency_name}\\\", success).\" >> scryer_libs/temp/install_resp.pl"
                 else
                     flock scryer_libs/temp/install_resp.pl.lock \
-                        -c "echo 'result(${dependency_name}, error(${error_output})).' >> scryer_libs/temp/install_resp.pl"
+                        -c "echo \"result(\\\"${dependency_name}\\\", error(${error_output})).\" >> scryer_libs/temp/install_resp.pl"
                 fi
             ) &
             ;;
@@ -48,10 +48,10 @@ for dependency in "${DEPENDENCIES[@]}"; do
 
                 if [ -z "$error_output" ]; then
                     flock scryer_libs/temp/install_resp.pl.lock \
-                        -c "echo 'result(${dependency_name}, success).' >> scryer_libs/temp/install_resp.pl"
+                        -c "echo \"result(\\\"${dependency_name}\\\", success).\" >> scryer_libs/temp/install_resp.pl"
                 else
                     flock scryer_libs/temp/install_resp.pl.lock \
-                        -c "echo 'result(${dependency_name}, error(${error_output})).' >> scryer_libs/temp/install_resp.pl"
+                        -c "echo \"result(\\\"${dependency_name}\\\", error(${error_output})).\" >> scryer_libs/temp/install_resp.pl"
                 fi
             ) &
             ;;
@@ -68,10 +68,10 @@ for dependency in "${DEPENDENCIES[@]}"; do
 
                 if [ -z "$error_output" ]; then
                     flock scryer_libs/temp/install_resp.pl.lock \
-                        -c "echo 'result(${dependency_name}, success).' >> scryer_libs/temp/install_resp.pl"
+                        -c "echo \"result(\\\"${dependency_name}\\\", success).\" >> scryer_libs/temp/install_resp.pl"
                 else
                     flock scryer_libs/temp/install_resp.pl.lock \
-                        -c "echo 'result(${dependency_name}, error(${error_output})).' >> scryer_libs/temp/install_resp.pl"
+                        -c "echo \"result(\\\"${dependency_name}\\\", error(${error_output})).\" >> scryer_libs/temp/install_resp.pl"
                 fi
             ) &
             ;;
@@ -100,14 +100,14 @@ for dependency in "${DEPENDENCIES[@]}"; do
 
                     if [ -z "$combined_error" ]; then
                         flock scryer_libs/temp/install_resp.pl.lock \
-                            -c "echo 'result(${dependency_name}, success).' >> scryer_libs/temp/install_resp.pl"
+                            -c "echo \"result(\\\"${dependency_name}\\\", success).\" >> scryer_libs/temp/install_resp.pl"
                     else
                         flock scryer_libs/temp/install_resp.pl.lock \
-                            -c "echo 'result(${dependency_name}, error(${combined_error})).' >> scryer_libs/temp/install_resp.pl"
+                            -c "echo \"result(\\\"${dependency_name}\\\", error(${combined_error})).\" >> scryer_libs/temp/install_resp.pl"
                     fi
                 else
                     flock scryer_libs/temp/install_resp.pl.lock \
-                        -c "echo 'result(${dependency_name}, error(${error_output})).' >> scryer_libs/temp/install_resp.pl"
+                        -c "echo \"result(\\\"${dependency_name}\\\", error(${error_output})).\" >> scryer_libs/temp/install_resp.pl"
                 fi
             ) &
             ;;
@@ -117,19 +117,21 @@ for dependency in "${DEPENDENCIES[@]}"; do
 
                 if [ -z "$error_output" ]; then
                     flock scryer_libs/temp/install_resp.pl.lock \
-                        -c "echo 'result(${dependency_name}, success).' >> scryer_libs/temp/install_resp.pl"
+                        -c "echo \"result(\\\"${dependency_name}\\\", success).\" >> scryer_libs/temp/install_resp.pl"
                 else
                     flock scryer_libs/temp/install_resp.pl.lock \
-                        -c "echo 'result(${dependency_name}, error(${error_output})).' >> scryer_libs/temp/install_resp.pl"
+                        -c "echo \"result(\\\"${dependency_name}\\\", error(${error_output})).\" >> scryer_libs/temp/install_resp.pl"
                 fi
             ) &
             ;;
         *)
             echo "Unknown dependency kind: ${dependency_kind}"
+            lock scryer_libs/temp/install_resp.pl.lock \
+                        -c "echo \"result(\\\"${dependency_name}\\\", error(\"Unknown dependency kind: ${dependency_kind}\").\" >> scryer_libs/temp/install_resp.pl"
             ;;
     esac
 done
 
 wait
 
-rm scryer_libs/temp/install_resp.pl.lock
+rm -f scryer_libs/temp/install_resp.pl.lock

@@ -112,7 +112,6 @@ pkg_install(Results) :-
     ;   true
     ),
     installation_execution(IPlan, InstallResults),
-    installation_steps_ended(IPlan),
     lock_execution(LPlan, LockTerms, LockResult),
     materialize_lock_file(LockTerms),
     append([InstallResults, LockResult], Results),
@@ -125,11 +124,49 @@ materialize_lock_file(LockTerms) :-
     write(Stream, '.\n'),
     close(Stream).
 
-installation_execution([], []).
-installation_execution([P|Ps], Results):-
-    installation_execution(Ps, Result0),
-    execution_step(P, Result),
-    append([Result0, [Result]],Results).
+installation_execution(Plan, Results):-
+    ensure_dependencies(Plan, _Success),
+    parse_install_report(Result_Report),
+    installation_report(Plan, Result_Report, [], ResultsReversed),
+    reverse(ResultsReversed, Results).
+
+installation_report([], _, Acc, Acc).
+installation_report([P|Ps], Result_Report, Acc, Results):-
+    report_result(P, Result_Report, R),
+    installation_report(Ps, Result_Report, [R|Acc], Results).
+
+
+parse_install_report(Result_List) :-
+    open("scryer_libs/temp/install_resp.pl", read, Stream),
+    parse_install_report_(Stream, [], Result_List),
+    close(Stream),
+    delete_file("scryer_libs/temp/install_resp.pl").
+
+
+parse_install_report_(Stream, Acc, Result_List) :-
+    read(Stream, Term),
+    ( Term == end_of_file ->
+        Result_List= Acc
+    ; parse_install_report_(Stream, [Term | Acc], Result_List)
+    ).
+
+report_message(_, [], error("the result was not reported")).
+
+report_message(Name, [result(Name, Message)| _], Message) :- !.
+
+report_message(Name, [result(_, _)| Rs], Message) :-
+    report_message(Name, Rs, Message).
+
+
+report_result(do_nothing(dependency(Name, DependencyTerm)), _, do_nothing(dependency(Name, DependencyTerm))-success).
+
+report_result(install_dependency(dependency(Name, DependencyTerm)), Result_Messages, Result):-
+    report_message(Name, Result_Messages, Message),
+    Result = install_dependency(dependency(Name, DependencyTerm))-Message.
+
+report_result(install_locked_dependency(dependency(Name, DependencyTerm)), Result_Messages, Result):-
+    report_message(Name, Result_Messages, Message),
+    Result = install_locked_dependency(dependency(Name, DependencyTerm))-Message.
 
 lock_execution([], [], []).
 
@@ -142,35 +179,6 @@ lock_execution([P|Ps], LockTerms, Results):-
             true
         ;   append([LockTerms0, [LockTerm]], LockTerms)
     ).
-
-installation_steps_ended([]).
-installation_steps_ended([P|Ps]):-
-    dependency_installed(P),
-    installation_steps_ended(Ps).
-
-dependency_installed(do_nothing(_)).
-
-dependency_installed(install_locked_dependency(dependency(Name, _))):-
-    dependency_installed(install_dependency(dependency(Name, _))).
-
-dependency_installed(install_dependency(dependency(Name, _))) :-
-    append(["scryer_libs/temp/parallel_lock_", Name], LockFileName),
-    (
-        file_exists(LockFileName)->
-            delete_file(LockFileName)
-        ; dependency_installed(install_dependency(dependency(Name, _)))
-    ).
-
-execution_step(do_nothing(dependency(Name, DependencyTerm)), do_nothing(dependency(Name, DependencyTerm))-success(true)) :-
-    current_output(Out),
-    phrase_to_stream(("Already installed: ", portray_clause_(dependency(Name, DependencyTerm))), Out).
-
-execution_step(install_dependency(D), Result) :-
-    ensure_dependency(D, Success),
-    Result = install_dependency(D)-success(Success).
-
-execution_step(install_locked_dependency(D), install_locked_dependency(D)-Success) :- 
-    execution_step(install_dependency(D), _-Success).
 
 execution_lock_step(lock(dependency(Name, git(Url,hash(Hash)))), dependency(Name, git(Url,hash(Hash)), IntegrityHash), lock(dependency(Name, git(Url,hash(Hash))))-success(Success)) :- 
     ensure_integrity_hash(dependency(Name, git(Url,hash(Hash))), IntegrityHash, Success),
@@ -199,6 +207,64 @@ execution_lock_step(lock(dependency(Name, git(Url, Opt))), LockedDependency, Res
         ;   Result = lock(dependency(Name, git(Url, Opt)))-success(Success)
     ).
 
+ensure_dependencies(Plan, Success) :-
+    ensure_dependency_command_(Plan, Ls),
+    (
+        length(Ls, 0)->
+            D_String = Ls
+        ;   tail(Ls, D_String)
+    ),
+    Args = [
+        "DEPENDENCIES_STRING"-D_String
+    ],
+    run_script_with_args("ensure_dependency", Args, Success).
+
+tail([_|Ls], Ls).
+ensure_dependency_command_([], []).
+
+ensure_dependency_command_([P|Ps], Ls) :-
+    ensure_dependency_command_(Ps, Ls0),
+    ensure_dependency_command_arg(P, El),
+    (
+        El == do_nothing ->
+            Ls = Ls0
+        ;   append([Ls0, "|", El], Ls)
+    ).
+
+ensure_dependency_command_arg(do_nothing(D) , do_nothing):-
+    current_output(Out),
+    phrase_to_stream(("Already installed: ", portray_clause_(D)), Out).
+
+ensure_dependency_command_arg(install_locked_dependency(D) ,El):-
+    ensure_dependency_command_arg(install_dependency(D), El).
+
+ensure_dependency_command_arg(install_dependency(dependency(Name, git(Url))) ,El):-
+    atom_chars(Atom_Url, Url),
+    write_term_to_chars(git(Atom_Url), [quoted(true), double_quotes(true)], DependencyTermChars),
+    append(["dependency_term=", DependencyTermChars, ";dependency_name=", Name, ";dependency_kind=git_default;git_url=", Url], El).
+
+ensure_dependency_command_arg(install_dependency(dependency(Name, git(Url,branch(Branch)))) ,El):-
+    atom_chars(Atom_Url, Url),
+    atom_chars(Atom_Branch, Branch),
+    write_term_to_chars(git(Atom_Url,branch(Atom_Branch)), [quoted(true), double_quotes(true)], DependencyTermChars),
+    append(["dependency_term=", DependencyTermChars, ";dependency_name=", Name, ";dependency_kind=git_branch;git_url=", Url, ";git_branch=", Branch], El).
+
+ensure_dependency_command_arg(install_dependency(dependency(Name, git(Url,tag(Tag)))) ,El):-
+    atom_chars(Atom_Url, Url),
+    atom_chars(Atom_Tag, Tag),
+    write_term_to_chars(git(Atom_Url,tag(Atom_Tag)), [quoted(true), double_quotes(true)], DependencyTermChars),
+    append(["dependency_term=", DependencyTermChars, ";dependency_name=", Name, ";dependency_kind=git_branch;git_url=", Url, ";git_tag=", Tag], El).
+
+ensure_dependency_command_arg(install_dependency(dependency(Name, git(Url,hash(Hash)))) ,El):-
+    atom_chars(Atom_Url, Url),
+    atom_chars(Atom_Hash, Hash),
+    write_term_to_chars(git(Atom_Url,hash(Atom_Hash)), [quoted(true), double_quotes(true)], DependencyTermChars),
+    append(["dependency_term=", DependencyTermChars, ";dependency_name=", Name, ";dependency_kind=git_hash;git_url=", Url, ";git_hash=", Hash], El).
+
+ensure_dependency_command_arg(install_dependency(dependency(Name, path(Path))) ,El):-
+    atom_chars(Atom_Path, Path),
+    write_term_to_chars(path(Atom_Path), [quoted(true), double_quotes(true)], DependencyTermChars),
+    append(["dependency_term=", DependencyTermChars, ";dependency_name=", Name, ";dependency_kind=path;dependency_path=", Path], El).
 
 lock_dependency_with_name([dependency(Name, X, _)|_], dependency(Name, _), dependency(Name, X)) :- !.
 
@@ -251,42 +317,8 @@ ensure_lock(dependency(Name, _), Hash, Success) :-
     ],
     run_script_with_args("ensure_lock_dependency", Arg, Result_Filename, Hash, Success).
 
-ensure_dependency(dependency(Name, DependencyTerm), Success) :-
-    write_term_to_chars(DependencyTerm, [quoted(true), double_quotes(true)], DependencyTermChars),
-    CommonArgs = [
-        "DEPENDENCY_NAME"-Name,
-        "DEPENDENCY_TERM"-DependencyTermChars
-    ],
-    ensure_dependency_extra_args(DependencyTerm, ExtraArgs),
-    append(CommonArgs, ExtraArgs, Args),
-    run_script_with_args("ensure_dependency", Args, Success).
-
-ensure_dependency_extra_args(git(Url), [
-    "DEPENDENCY_KIND"-"git_default",
-    "GIT_URL"-Url
-]).
-ensure_dependency_extra_args(git(Url,branch(Branch)), [
-    "DEPENDENCY_KIND"-"git_branch",
-    "GIT_URL"-Url,
-    "GIT_BRANCH"-Branch
-]).
-ensure_dependency_extra_args(git(Url,tag(Tag)), [
-    "DEPENDENCY_KIND"-"git_tag",
-    "GIT_URL"-Url,
-    "GIT_TAG"-Tag
-]).
-ensure_dependency_extra_args(git(Url,hash(Hash)), [
-    "DEPENDENCY_KIND"-"git_hash",
-    "GIT_URL"-Url,
-    "GIT_HASH"-Hash
-]).
-ensure_dependency_extra_args(path(Path), [
-    "DEPENDENCY_KIND"-"path",
-    "DEPENDENCY_PATH"-Path
-]).
-
 % === Generated code start ===
-script_string("ensure_dependency", "#!/bin/sh\nset -eu\n\necho \"Ensuring is installed: ${DEPENDENCY_TERM}\"\n\ncase \"${DEPENDENCY_KIND}\" in\n    git_default)\n        (git clone \\\n            --quiet \\\n            --depth 1 \\\n            --single-branch \\\n            \"${GIT_URL}\" \\\n            scryer_libs/packages/${DEPENDENCY_NAME} && \\\n            touch scryer_libs/temp/parallel_lock_${DEPENDENCY_NAME}) &\n        ;;\n    git_branch)\n        (git clone \\\n            --quiet \\\n            --depth 1 \\\n            --single-branch \\\n            --branch \"${GIT_BRANCH}\" \\\n            \"${GIT_URL}\" \\\n            scryer_libs/packages/${DEPENDENCY_NAME} && \\\n            touch scryer_libs/temp/parallel_lock_${DEPENDENCY_NAME}) &\n        ;;\n    git_tag)\n        (git clone \\\n            --quiet \\\n            --depth 1 \\\n            --single-branch \\\n            --branch \"${GIT_TAG}\" \\\n            \"${GIT_URL}\" \\\n            scryer_libs/packages/${DEPENDENCY_NAME} && \\\n            touch scryer_libs/temp/parallel_lock_${DEPENDENCY_NAME}) &\n        ;;\n    git_hash)\n        (git clone \\\n            --quiet \\\n            --depth 1 \\\n            --single-branch \\\n            \"${GIT_URL}\" \\\n            scryer_libs/packages/${DEPENDENCY_NAME}\n        git -C scryer_libs/packages/${DEPENDENCY_NAME} fetch \\\n            --quiet \\\n            --depth 1 \\\n            origin \"${GIT_HASH}\"\n        git -C scryer_libs/packages/${DEPENDENCY_NAME} switch \\\n            --quiet \\\n            --detach \\\n            \"${GIT_HASH}\" && \\\n            touch scryer_libs/temp/parallel_lock_${DEPENDENCY_NAME}) &\n        ;;\n    path)\n        (ln -rsf \"${DEPENDENCY_PATH}\" \"scryer_libs/packages/${DEPENDENCY_NAME}\" && \\\n            touch scryer_libs/temp/parallel_lock_${DEPENDENCY_NAME}) &\n        ;;\n    *)\n        echo \"Unknown dependency kind\"\n        exit 1\n        ;;\nesac\n").
+script_string("ensure_dependency", "#!/bin/sh\nset -eu\n\nIFS=\'|\' read -r -a DEPENDENCIES <<< \"$DEPENDENCIES_STRING\"\n\ntouch scryer_libs/temp/install_resp.pl\n\nfor dependency in \"${DEPENDENCIES[@]}\"; do\n    IFS=\';\' read -ra fields <<< \"$dependency\"\n    for field in \"${fields[@]}\"; do\n        key=\"${field%%=*}\"\n        value=\"${field#*=}\"\n        eval \"$key=\\\"\\$value\\\"\"\n    done\n\n    echo \"Ensuring is installed: ${dependency_term}\"\n\n    case \"${dependency_kind}\" in\n        git_default)\n            (\n                error_output=$(git clone \\\n                    --quiet \\\n                    --depth 1 \\\n                    --single-branch \\\n                    \"${git_url}\" \\\n                    \"scryer_libs/packages/${dependency_name}\" 2>&1 1>/dev/null\n                )\n\n                if [ -z \"$error_output\" ]; then\n                    flock scryer_libs/temp/install_resp.pl.lock \\\n                        -c \"echo \\\"result(\\\\\\\"${dependency_name}\\\\\\\", success).\\\" >> scryer_libs/temp/install_resp.pl\"\n                else\n                    flock scryer_libs/temp/install_resp.pl.lock \\\n                        -c \"echo \\\"result(\\\\\\\"${dependency_name}\\\\\\\", error(${error_output})).\\\" >> scryer_libs/temp/install_resp.pl\"\n                fi\n            ) &\n            ;;\n        git_branch)\n            (\n                error_output=$(git clone \\\n                    --quiet \\\n                    --depth 1 \\\n                    --single-branch \\\n                    --branch \"${git_branch}\" \\\n                    \"${git_url}\" \\\n                    \"scryer_libs/packages/${dependency_name}\" 2>&1 1>/dev/null\n                )\n\n                if [ -z \"$error_output\" ]; then\n                    flock scryer_libs/temp/install_resp.pl.lock \\\n                        -c \"echo \\\"result(\\\\\\\"${dependency_name}\\\\\\\", success).\\\" >> scryer_libs/temp/install_resp.pl\"\n                else\n                    flock scryer_libs/temp/install_resp.pl.lock \\\n                        -c \"echo \\\"result(\\\\\\\"${dependency_name}\\\\\\\", error(${error_output})).\\\" >> scryer_libs/temp/install_resp.pl\"\n                fi\n            ) &\n            ;;\n        git_tag)\n            (\n                error_output=$(git clone \\\n                    --quiet \\\n                    --depth 1 \\\n                    --single-branch \\\n                    --branch \"${git_tag}\" \\\n                    \"${git_url}\" \\\n                    \"scryer_libs/packages/${dependency_name}\" 2>&1 1>/dev/null\n                )\n\n                if [ -z \"$error_output\" ]; then\n                    flock scryer_libs/temp/install_resp.pl.lock \\\n                        -c \"echo \\\"result(\\\\\\\"${dependency_name}\\\\\\\", success).\\\" >> scryer_libs/temp/install_resp.pl\"\n                else\n                    flock scryer_libs/temp/install_resp.pl.lock \\\n                        -c \"echo \\\"result(\\\\\\\"${dependency_name}\\\\\\\", error(${error_output})).\\\" >> scryer_libs/temp/install_resp.pl\"\n                fi\n            ) &\n            ;;\n        git_hash)\n            (\n                error_output=$(git clone \\\n                    --quiet \\\n                    --depth 1 \\\n                    --single-branch \\\n                    \"${git_url}\" \\\n                    \"scryer_libs/packages/${dependency_name}\" 2>&1 1>/dev/null\n                )\n\n                if [ -z \"$error_output\" ]; then\n                    fetch_error=$(git -C \"scryer_libs/packages/${dependency_name}\" fetch \\\n                        --quiet \\\n                        --depth 1 \\\n                        origin \"${git_hash}\" 2>&1 1>/dev/null\n                    )\n                    switch_error=$(git -C \"scryer_libs/packages/${dependency_name}\" switch \\\n                        --quiet \\\n                        --detach \\\n                        \"${git_hash}\" 2>&1 1>/dev/null\n                    )\n                    combined_error=\"${fetch_error}${switch_error}\"\n\n                    if [ -z \"$combined_error\" ]; then\n                        flock scryer_libs/temp/install_resp.pl.lock \\\n                            -c \"echo \\\"result(\\\\\\\"${dependency_name}\\\\\\\", success).\\\" >> scryer_libs/temp/install_resp.pl\"\n                    else\n                        flock scryer_libs/temp/install_resp.pl.lock \\\n                            -c \"echo \\\"result(\\\\\\\"${dependency_name}\\\\\\\", error(${combined_error})).\\\" >> scryer_libs/temp/install_resp.pl\"\n                    fi\n                else\n                    flock scryer_libs/temp/install_resp.pl.lock \\\n                        -c \"echo \\\"result(\\\\\\\"${dependency_name}\\\\\\\", error(${error_output})).\\\" >> scryer_libs/temp/install_resp.pl\"\n                fi\n            ) &\n            ;;\n        path)\n            (\n                error_output=$(ln -rsf \"${dependency_path}\" \"scryer_libs/packages/${dependency_name}\" 2>&1 1>/dev/null)\n\n                if [ -z \"$error_output\" ]; then\n                    flock scryer_libs/temp/install_resp.pl.lock \\\n                        -c \"echo \\\"result(\\\\\\\"${dependency_name}\\\\\\\", success).\\\" >> scryer_libs/temp/install_resp.pl\"\n                else\n                    flock scryer_libs/temp/install_resp.pl.lock \\\n                        -c \"echo \\\"result(\\\\\\\"${dependency_name}\\\\\\\", error(${error_output})).\\\" >> scryer_libs/temp/install_resp.pl\"\n                fi\n            ) &\n            ;;\n        *)\n            echo \"Unknown dependency kind: ${dependency_kind}\"\n            lock scryer_libs/temp/install_resp.pl.lock \\\n                        -c \"echo \\\"result(\\\\\\\"${dependency_name}\\\\\\\", error(\\\"Unknown dependency kind: ${dependency_kind}\\\").\\\" >> scryer_libs/temp/install_resp.pl\"\n            ;;\n    esac\ndone\n\nwait\n\nrm -f scryer_libs/temp/install_resp.pl.lock\n").
 script_string("ensure_integrity_hash", "#!/bin/sh\nset -eu\n\nCHECKSUM=$(find scryer_libs/packages/${DEPENDENCY_NAME} -type f -print0 | sort -z | xargs -0 sha1sum | sha1sum | awk \'{print $1}\')\necho \"result(\\\"$CHECKSUM\\\").\" > ${RESULT_FILE}").
 script_string("ensure_lock_dependency", "#!/bin/sh\nset -eu\n\nGIT_HASH=$(cd scryer_libs/packages/${DEPENDENCY_NAME} && git rev-parse HEAD)\necho \"result(\\\"$GIT_HASH\\\").\" > ${RESULT_FILE}").
 % === Generated code end ===
