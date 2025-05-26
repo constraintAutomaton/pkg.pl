@@ -1,67 +1,151 @@
 #!/bin/sh
 set -eu
 
-echo "Ensuring is installed: ${DEPENDENCY_TERM}"
+IFS='|' read -r -a DEPENDENCIES <<< "$DEPENDENCIES_STRING"
 
-rm --recursive --force scryer_libs/tmp-package
+touch scryer_libs/temp/install_resp.pl
 
-relocate_tmp() {
-    rm --recursive --force "scryer_libs/packages/${DEPENDENCY_NAME}"
-    mv scryer_libs/tmp-package "scryer_libs/packages/${DEPENDENCY_NAME}"
-}
+for dependency in "${DEPENDENCIES[@]}"; do
+    unset dependency_term dependency_kind dependency_name git_url git_branch git_tag git_hash dependency_path
+    
+    IFS=';' read -ra fields <<< "$dependency"
+    
+    for field in "${fields[@]}"; do
+        key=${field%%=*}
+        value=${field#*=}
 
-case "${DEPENDENCY_KIND}" in
-    git_default)
-        git clone \
-            --quiet \
-            --depth 1 \
-            --single-branch \
-            "${GIT_URL}" \
-            scryer_libs/tmp-package
-        relocate_tmp
-        ;;
-    git_branch)
-        git clone \
-            --quiet \
-            --depth 1 \
-            --single-branch \
-            --branch "${GIT_BRANCH}" \
-            "${GIT_URL}" \
-            scryer_libs/tmp-package
-        relocate_tmp
-        ;;
-    git_tag)
-        git clone \
-            --quiet \
-            --depth 1 \
-            --single-branch \
-            --branch "${GIT_TAG}" \
-            "${GIT_URL}" \
-            scryer_libs/tmp-package
-        relocate_tmp
-        ;;
-    git_hash)
-        git clone \
-            --quiet \
-            --depth 1 \
-            --single-branch \
-            "${GIT_URL}" \
-            scryer_libs/tmp-package
-        git -C scryer_libs/tmp-package fetch \
-            --quiet \
-            --depth 1 \
-            origin "${GIT_HASH}"
-        git -C scryer_libs/tmp-package switch \
-            --quiet \
-            --detach \
-            "${GIT_HASH}"
-        relocate_tmp
-        ;;
-    path)
-        ln -rsf "${DEPENDENCY_PATH}" "scryer_libs/packages/${DEPENDENCY_NAME}"
-        ;;
-    *)
-        echo "Unknown dependency kind"
-        exit 1
-        ;;
-esac
+        case "$key" in
+            dependency_term) dependency_term=$value ;;
+            dependency_kind) dependency_kind=$value ;;
+            dependency_name) dependency_name=$value ;;
+            git_url) git_url=$value ;;
+            git_branch) git_branch=$value ;;
+            git_tag) git_tag=$value ;;
+            git_hash) git_hash=$value ;;
+            dependency_path) dependency_path=$value ;;
+        esac
+    done
+
+
+    echo "Ensuring is installed: ${dependency_term}"
+
+    case "${dependency_kind}" in
+        git_default)
+            (
+                error_output=$(git clone \
+                    --quiet \
+                    --depth 1 \
+                    --single-branch \
+                    "${git_url}" \
+                    "scryer_libs/packages/${dependency_name}" 2>&1 1>/dev/null
+                )
+
+                if [ -z "$error_output" ]; then
+                    flock scryer_libs/temp/install_resp.pl.lock \
+                        -c "echo \"result(\\\"${dependency_name}\\\", success).\" >> scryer_libs/temp/install_resp.pl"
+                else
+                    flock scryer_libs/temp/install_resp.pl.lock \
+                        -c "echo \"result(\\\"${dependency_name}\\\", error(${error_output})).\" >> scryer_libs/temp/install_resp.pl"
+                fi
+            ) &
+            ;;
+        git_branch)
+            (
+                error_output=$(git clone \
+                    --quiet \
+                    --depth 1 \
+                    --single-branch \
+                    --branch "${git_branch}" \
+                    "${git_url}" \
+                    "scryer_libs/packages/${dependency_name}" 2>&1 1>/dev/null
+                )
+
+                if [ -z "$error_output" ]; then
+                    flock scryer_libs/temp/install_resp.pl.lock \
+                        -c "echo \"result(\\\"${dependency_name}\\\", success).\" >> scryer_libs/temp/install_resp.pl"
+                else
+                    flock scryer_libs/temp/install_resp.pl.lock \
+                        -c "echo \"result(\\\"${dependency_name}\\\", error(${error_output})).\" >> scryer_libs/temp/install_resp.pl"
+                fi
+            ) &
+            ;;
+        git_tag)
+            (
+                error_output=$(git clone \
+                    --quiet \
+                    --depth 1 \
+                    --single-branch \
+                    --branch "${git_tag}" \
+                    "${git_url}" \
+                    "scryer_libs/packages/${dependency_name}" 2>&1 1>/dev/null
+                )
+
+                if [ -z "$error_output" ]; then
+                    flock scryer_libs/temp/install_resp.pl.lock \
+                        -c "echo \"result(\\\"${dependency_name}\\\", success).\" >> scryer_libs/temp/install_resp.pl"
+                else
+                    flock scryer_libs/temp/install_resp.pl.lock \
+                        -c "echo \"result(\\\"${dependency_name}\\\", error(${error_output})).\" >> scryer_libs/temp/install_resp.pl"
+                fi
+            ) &
+            ;;
+        git_hash)
+            (
+                error_output=$(git clone \
+                    --quiet \
+                    --depth 1 \
+                    --single-branch \
+                    "${git_url}" \
+                    "scryer_libs/packages/${dependency_name}" 2>&1 1>/dev/null
+                )
+
+                if [ -z "$error_output" ]; then
+                    fetch_error=$(git -C "scryer_libs/packages/${dependency_name}" fetch \
+                        --quiet \
+                        --depth 1 \
+                        origin "${git_hash}" 2>&1 1>/dev/null
+                    )
+                    switch_error=$(git -C "scryer_libs/packages/${dependency_name}" switch \
+                        --quiet \
+                        --detach \
+                        "${git_hash}" 2>&1 1>/dev/null
+                    )
+                    combined_error="${fetch_error}${switch_error}"
+
+                    if [ -z "$combined_error" ]; then
+                        flock scryer_libs/temp/install_resp.pl.lock \
+                            -c "echo \"result(\\\"${dependency_name}\\\", success).\" >> scryer_libs/temp/install_resp.pl"
+                    else
+                        flock scryer_libs/temp/install_resp.pl.lock \
+                            -c "echo \"result(\\\"${dependency_name}\\\", error(${combined_error})).\" >> scryer_libs/temp/install_resp.pl"
+                    fi
+                else
+                    flock scryer_libs/temp/install_resp.pl.lock \
+                        -c "echo \"result(\\\"${dependency_name}\\\", error(${error_output})).\" >> scryer_libs/temp/install_resp.pl"
+                fi
+            ) &
+            ;;
+        path)
+            (
+                error_output=$(ln -rsf "${dependency_path}" "scryer_libs/packages/${dependency_name}" 2>&1 1>/dev/null)
+
+                if [ -z "$error_output" ]; then
+                    flock scryer_libs/temp/install_resp.pl.lock \
+                        -c "echo \"result(\\\"${dependency_name}\\\", success).\" >> scryer_libs/temp/install_resp.pl"
+                else
+                    flock scryer_libs/temp/install_resp.pl.lock \
+                        -c "echo \"result(\\\"${dependency_name}\\\", error(${error_output})).\" >> scryer_libs/temp/install_resp.pl"
+                fi
+            ) &
+            ;;
+        *)
+            echo "Unknown dependency kind: ${dependency_kind}"
+            flock scryer_libs/temp/install_resp.pl.lock \
+                        -c "echo \"result(\\\"${dependency_name}\\\", error(\"Unknown dependency kind: ${dependency_kind}\").\" >> scryer_libs/temp/install_resp.pl"
+            ;;
+    esac
+done
+
+wait
+
+rm -f scryer_libs/temp/install_resp.pl.lock
