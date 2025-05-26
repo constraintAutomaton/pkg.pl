@@ -2,7 +2,7 @@ test:
     #!/bin/sh
     set -eu
 
-    source ../util_packages/report_test.sh
+    . ../util_packages/report_test.sh
 
     echo "Testing the installation of a path dependency"
 
