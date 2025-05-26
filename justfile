@@ -29,7 +29,11 @@ codegen-check: codegen
 # All the checks made in CI
 ci: codegen-check test
 
-test: build test-example
+test: 
+    just build 
+    just test-example
+    just test/build
+    just test/test
 
 test-example:
     just example/test
