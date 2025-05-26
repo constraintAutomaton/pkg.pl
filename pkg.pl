@@ -8,7 +8,6 @@
 :- use_module(library(lists)).
 :- use_module(library(charsio)).
 :- use_module(library(format)).
-:- use_module(library(debug)).
 
 % Cleanly pass arguments to a script through environment variables
 run_script_with_args(ScriptName, Args, Success) :-
