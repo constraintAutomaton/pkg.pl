@@ -1,0 +1,13 @@
+test:
+    #!/bin/sh
+    set -eu
+    
+    . ../util_packages/report_test.sh
+
+    echo "Testing installation of multiple dependencies"
+
+    rm -rf scryer_libs && rm -f manifest-lock.pl
+
+    scryer-prolog main.pl -g "catch(main, _, halt(1)) ."
+
+    rm -rf scryer_libs && rm -f manifest-lock.pl

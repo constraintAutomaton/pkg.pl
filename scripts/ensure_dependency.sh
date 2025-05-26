@@ -1,5 +1,22 @@
 #!/bin/sh
-set -eu
+set -u
+
+write_result() {
+  flock scryer_libs/temp/install_resp.pl.lock \
+    -c "echo \"result(\\\"$1\\\", $2).\" >> scryer_libs/temp/install_resp.pl"
+}
+
+write_success() {
+  write_result "$1" "success"
+}
+
+write_error() {
+  escaped_error=$(printf '%s' "$2" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g')
+  escaped_error=$(printf '%s' "$escaped_error" | tr '\r\n' '\\n')
+  escaped_error=$(printf '%s' "$escaped_error" | sed 's/ / /g')
+  write_result "$1" "error(\\\"$escaped_error\\\")"
+}
+
 
 IFS='|' read -r -a DEPENDENCIES <<< "$DEPENDENCIES_STRING"
 
@@ -26,7 +43,6 @@ for dependency in "${DEPENDENCIES[@]}"; do
         esac
     done
 
-
     echo "Ensuring is installed: ${dependency_term}"
 
     case "${dependency_kind}" in
@@ -41,11 +57,9 @@ for dependency in "${DEPENDENCIES[@]}"; do
                 )
 
                 if [ -z "$error_output" ]; then
-                    flock scryer_libs/temp/install_resp.pl.lock \
-                        -c "echo \"result(\\\"${dependency_name}\\\", success).\" >> scryer_libs/temp/install_resp.pl"
+                    write_success "${dependency_name}"
                 else
-                    flock scryer_libs/temp/install_resp.pl.lock \
-                        -c "echo \"result(\\\"${dependency_name}\\\", error(${error_output})).\" >> scryer_libs/temp/install_resp.pl"
+                    write_error "${dependency_name}" "$error_output"
                 fi
             ) &
             ;;
@@ -59,13 +73,11 @@ for dependency in "${DEPENDENCIES[@]}"; do
                     "${git_url}" \
                     "scryer_libs/packages/${dependency_name}" 2>&1 1>/dev/null
                 )
-
+                
                 if [ -z "$error_output" ]; then
-                    flock scryer_libs/temp/install_resp.pl.lock \
-                        -c "echo \"result(\\\"${dependency_name}\\\", success).\" >> scryer_libs/temp/install_resp.pl"
+                    write_success "${dependency_name}"
                 else
-                    flock scryer_libs/temp/install_resp.pl.lock \
-                        -c "echo \"result(\\\"${dependency_name}\\\", error(${error_output})).\" >> scryer_libs/temp/install_resp.pl"
+                    write_error "${dependency_name}" "$error_output"
                 fi
             ) &
             ;;
@@ -79,13 +91,11 @@ for dependency in "${DEPENDENCIES[@]}"; do
                     "${git_url}" \
                     "scryer_libs/packages/${dependency_name}" 2>&1 1>/dev/null
                 )
-
+                
                 if [ -z "$error_output" ]; then
-                    flock scryer_libs/temp/install_resp.pl.lock \
-                        -c "echo \"result(\\\"${dependency_name}\\\", success).\" >> scryer_libs/temp/install_resp.pl"
+                    write_success "${dependency_name}"
                 else
-                    flock scryer_libs/temp/install_resp.pl.lock \
-                        -c "echo \"result(\\\"${dependency_name}\\\", error(${error_output})).\" >> scryer_libs/temp/install_resp.pl"
+                    write_error "${dependency_name}" "$error_output"
                 fi
             ) &
             ;;
@@ -98,7 +108,7 @@ for dependency in "${DEPENDENCIES[@]}"; do
                     "${git_url}" \
                     "scryer_libs/packages/${dependency_name}" 2>&1 1>/dev/null
                 )
-
+                
                 if [ -z "$error_output" ]; then
                     fetch_error=$(git -C "scryer_libs/packages/${dependency_name}" fetch \
                         --quiet \
@@ -110,38 +120,36 @@ for dependency in "${DEPENDENCIES[@]}"; do
                         --detach \
                         "${git_hash}" 2>&1 1>/dev/null
                     )
-                    combined_error="${fetch_error}${switch_error}"
+                    combined_error="${fetch_error}; ${switch_error}"
 
-                    if [ -z "$combined_error" ]; then
-                        flock scryer_libs/temp/install_resp.pl.lock \
-                            -c "echo \"result(\\\"${dependency_name}\\\", success).\" >> scryer_libs/temp/install_resp.pl"
+                    if [ -z "$fetch_error" ] && [ -z "$switch_error" ]; then
+                        write_success "${dependency_name}"
                     else
-                        flock scryer_libs/temp/install_resp.pl.lock \
-                            -c "echo \"result(\\\"${dependency_name}\\\", error(${combined_error})).\" >> scryer_libs/temp/install_resp.pl"
+                        write_error "${dependency_name}" "$combined_error"
                     fi
                 else
-                    flock scryer_libs/temp/install_resp.pl.lock \
-                        -c "echo \"result(\\\"${dependency_name}\\\", error(${error_output})).\" >> scryer_libs/temp/install_resp.pl"
+                    write_error "${dependency_name}" "$error_output"
                 fi
             ) &
             ;;
         path)
             (
-                error_output=$(ln -rsf "${dependency_path}" "scryer_libs/packages/${dependency_name}" 2>&1 1>/dev/null)
+                if [ -d "${dependency_path}" ]; then
+                    error_output=$(ln -rsf "${dependency_path}" "scryer_libs/packages/${dependency_name}" 2>&1 1>/dev/null)
 
-                if [ -z "$error_output" ]; then
-                    flock scryer_libs/temp/install_resp.pl.lock \
-                        -c "echo \"result(\\\"${dependency_name}\\\", success).\" >> scryer_libs/temp/install_resp.pl"
+                    if [ -z "$error_output" ]; then
+                        write_success "${dependency_name}"
+                    else
+                        write_error "${dependency_name}" "$error_output"
+                    fi
                 else
-                    flock scryer_libs/temp/install_resp.pl.lock \
-                        -c "echo \"result(\\\"${dependency_name}\\\", error(${error_output})).\" >> scryer_libs/temp/install_resp.pl"
+                    write_error "${dependency_name}" "${dependency_path} does not exist"
                 fi
             ) &
             ;;
         *)
             echo "Unknown dependency kind: ${dependency_kind}"
-            flock scryer_libs/temp/install_resp.pl.lock \
-                        -c "echo \"result(\\\"${dependency_name}\\\", error(\"Unknown dependency kind: ${dependency_kind}\").\" >> scryer_libs/temp/install_resp.pl"
+            write_error "${dependency_name}" "Unknown dependency kind: ${dependency_kind}"
             ;;
     esac
 done
