@@ -89,24 +89,24 @@ pkg_install(Report) :-
     setenv("SHELL", "/bin/sh"),
     setenv("GIT_ADVICE", "0"),
     (   member(dependencies(Deps), Manifest) ->
-       plan(Plan, Deps)
+       logical_plan(Plan, Deps)
     ;   true
     ),
     installation_execution(Plan, Report),
     delete_directory("scryer_libs/temp").
 
-%  A plan to install the dependencies
-plan(Plan, Ds) :-
+% A logical plan to install the dependencies
+logical_plan(Plan, Ds) :-
     fetch_plan(Plan,[], Ds).
 
-% A plan to fetch the dependencies
+% A logical plan to fetch the dependencies
 fetch_plan(Acc, Acc, []).
 
 fetch_plan(Plan, Acc, [D|Ds]) :-
     fetch_step(Installation_Step, D),
     fetch_plan(Plan, [Installation_Step|Acc], Ds).
 
-% A step of a plan to fetch the dependencies
+% A step of a logical plan to fetch the dependencies
 fetch_step(Installation_Step, dependency(Name, DependencyTerm)):-
     append(["scryer_libs/packages/", Name], DepRepo),
     (
@@ -182,7 +182,7 @@ ensure_dependencies(Plan, Success) :-
     ],
     run_script_with_args("ensure_dependency", Args, Success).
 
-% Create a physical plan in bash script
+% Create a physical plan in shell script
 physical_plan([], []).
 
 physical_plan([P|Ps], Ls) :-
@@ -194,7 +194,7 @@ physical_plan([P|Ps], Ls) :-
         ;   append([Ls0, "|", El], Ls)
     ).
 
-% Create a strep for the physical bash script plan
+% Create a step for the shell script physical plan  
 physical_plan_step(do_nothing(D) , do_nothing):-
     current_output(Out),
     phrase_to_stream(("Already installed: ", portray_clause_(D)), Out).
