@@ -2,8 +2,8 @@
 set -u
 
 write_result() {
-  flock scryer_libs/temp/install_resp.pl.lock \
-    -c "echo \"result(\\\"$1\\\", $2).\" >> scryer_libs/temp/install_resp.pl"
+  flock scryer_libs/temp/install_resp.pl.lock -c \
+    "printf 'result(\"%s\", %s).\n' \"$1\" \"$2\" >> scryer_libs/temp/install_resp.pl"
 }
 
 write_success() {
@@ -17,19 +17,26 @@ write_error() {
   write_result "$1" "error(\\\"$escaped_error\\\")"
 }
 
-
-IFS='|' read -r -a DEPENDENCIES <<< "$DEPENDENCIES_STRING"
+OLD_IFS=$IFS
+IFS='|'
+set -- $DEPENDENCIES_STRING
+IFS=$OLD_IFS
 
 touch scryer_libs/temp/install_resp.pl
 
-for dependency in "${DEPENDENCIES[@]}"; do
+for dependency in "$@"; do
     unset dependency_term dependency_kind dependency_name git_url git_branch git_tag git_hash dependency_path
     
-    IFS=';' read -ra fields <<< "$dependency"
-    
-    for field in "${fields[@]}"; do
-        key=${field%%=*}
-        value=${field#*=}
+    IFS=';'
+    set -- $dependency
+    IFS=$OLD_IFS
+
+    while [ "$#" -gt 0 ]; do
+        field=$1
+        shift
+
+        key=$(printf "%s" "$field" | cut -d= -f1)
+        value=$(printf "%s" "$field" | cut -d= -f2-)
 
         case "$key" in
             dependency_term) dependency_term=$value ;;
@@ -43,7 +50,7 @@ for dependency in "${DEPENDENCIES[@]}"; do
         esac
     done
 
-    echo "Ensuring is installed: ${dependency_term}"
+    printf "Ensuring is installed: %s\n" "${dependency_term}"
 
     case "${dependency_kind}" in
         git_default)
@@ -148,7 +155,7 @@ for dependency in "${DEPENDENCIES[@]}"; do
             ) &
             ;;
         *)
-            echo "Unknown dependency kind: ${dependency_kind}"
+            printf "Unknown dependency kind: %s\n" "${dependency_kind}"
             write_error "${dependency_name}" "Unknown dependency kind: ${dependency_kind}"
             ;;
     esac
