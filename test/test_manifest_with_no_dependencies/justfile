@@ -1,6 +1,6 @@
 test:
     #!/bin/sh
-    echo "Testing the installation of a git branch dependency"
+    printf "%s" "Testing the installation of a git branch dependency"
     set -eu
     
     rm -rf scryer_libs && rm -f manifest-lock.pl
