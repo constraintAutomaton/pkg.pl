@@ -26,8 +26,11 @@ codegen:
 codegen-check: codegen
     diff pkg.pl pkg.pl.gen
 
+lint-sh:
+    shellcheck -s sh -S warning ./**/*.sh
+    
 # All the checks made in CI
-ci: codegen-check test
+ci: codegen-check lint-sh test
 
 test: 
     just build 
