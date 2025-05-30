@@ -4,4 +4,4 @@
 main :-
     run_tests.
 
-test("test if no dependencies are installed", (pkg_install(X), X = [])).
+test("test if no dependencies are installed", (pkg_install(X), X == [])).

@@ -15,6 +15,6 @@ test("the package report is valid", (
         install_dependency(dependency("test_hash", git("https://github.com/constraintAutomaton/test-prolog-package-manager.git", hash("d19fefc1d7907f6675e181601bb9b8b94561b441"))))-success,
         install_dependency(dependency("test_local", path("./local_package")))-success
         ], Expected),
-        X_Set = Expected
+        X_Set == Expected
     )
 ).

@@ -16,6 +16,7 @@ test("the package report is valid", (
         install_dependency(dependency("test_local", path("./local_package")))-success,
         install_dependency(dependency("error", path("./bar")))-error(_)
         ], Expected),
+        % We need to check for unification because we are not testing the specific error
         X_Set = Expected
     )
 ).

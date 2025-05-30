@@ -6,7 +6,7 @@ main :-
 
 test("the package report is valid", (
         pkg_install(X),
-        X = [
+        X == [
         install_dependency(dependency("test", path("./local_package")))-success
         ]
     )

@@ -7,7 +7,7 @@ main :-
 
 test("the package report is valid", (
         pkg_install(X),
-        X = [
+        X == [
         do_nothing(dependency("test", git("https://github.com/constraintAutomaton/test-prolog-package-manager.git", hash("d19fefc1d7907f6675e181601bb9b8b94561b441"))))-success
         ]
     )
