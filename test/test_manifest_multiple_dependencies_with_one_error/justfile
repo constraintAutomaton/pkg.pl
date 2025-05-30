@@ -4,7 +4,7 @@ test:
     
     . ../util_packages/report_test.sh
 
-    printf "%s\n" "Testing installation of multiple dependencies"
+    printf "%s\n" "Testing installation of multiple dependencies with one error"
 
     rm -rf scryer_libs && rm -f manifest-lock.pl
 
