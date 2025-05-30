@@ -12,9 +12,9 @@ test:
 
     for dir in test*/; do
         if (cd "$dir" && just test); then
-            printf "%s" "Test in $dir passed"
+            printf "%s\n" "Test in $dir passed"
         else
-            printf "%s" "Test in $dir FAILED"
+            printf "%s\n" "Test in $dir FAILED"
             exit_code=1
         fi
     done
