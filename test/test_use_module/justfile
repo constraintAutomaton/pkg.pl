@@ -2,7 +2,7 @@ test:
     #!/bin/sh
     set -eu
     
-    printf "%s" "Testing the usage of the dependencies"
+    printf "%s\n" "Testing the usage of the dependencies"
 
     rm -rf scryer_libs && rm -f manifest-lock.pl
 

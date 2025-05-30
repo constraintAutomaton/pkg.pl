@@ -4,7 +4,7 @@ test:
 
     . ../util_packages/report_test.sh
 
-    printf "%s" "Testing the installation of a git hash dependency"
+    printf "%s\n" "Testing the installation of a git hash dependency"
 
     rm -rf scryer_libs && rm -f manifest-lock.pl
     scryer-prolog main.pl -g "catch(main, _, halt(1)) ."
