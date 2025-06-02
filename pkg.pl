@@ -8,6 +8,7 @@
 :- use_module(library(lists)).
 :- use_module(library(charsio)).
 :- use_module(library(format)).
+:- use_module(library(reif)).
 
 % Cleanly pass arguments to a script through environment variables
 run_script_with_args(ScriptName, Args, Success) :-
@@ -82,6 +83,9 @@ ensure_script(Name-String) :-
     append(["scryer_libs/scripts/", Name, ".sh"], Path),
     phrase_to_file(String, Path).
 
+pkg_installed(Packages) :-
+    directory_files("scryer_libs/packages", Packages).
+
 % Predicate to install the dependencies
 pkg_install(Report) :-
     parse_manifest("scryer-manifest.pl", Manifest),
@@ -89,31 +93,29 @@ pkg_install(Report) :-
     setenv("SHELL", "/bin/sh"),
     setenv("GIT_ADVICE", "0"),
     (   member(dependencies(Deps), Manifest) ->
-       logical_plan(Plan, Deps)
+        pkg_installed(Installed_Packages),
+        logical_plan(Plan, Deps, Installed_Packages)
     ;   true
     ),
     installation_execution(Plan, Report),
     delete_directory("scryer_libs/temp").
 
 % A logical plan to install the dependencies
-logical_plan(Plan, Ds) :-
-    fetch_plan(Plan,[], Ds).
+logical_plan(Plan, Ds, Installed_Packages) :-
+    fetch_plan(Plan, [], Ds, Installed_Packages).
 
 % A logical plan to fetch the dependencies
-fetch_plan(Acc, Acc, []).
+fetch_plan(Acc, Acc, [], _).
 
-fetch_plan(Plan, Acc, [D|Ds]) :-
-    fetch_step(Installation_Step, D),
-    fetch_plan(Plan, [Installation_Step|Acc], Ds).
+fetch_plan(Plan, Acc, [D|Ds], Installed_Packages) :-
+    fetch_step(Installation_Step, D, Installed_Packages),
+    fetch_plan(Plan, [Installation_Step|Acc], Ds, Installed_Packages).
 
 % A step of a logical plan to fetch the dependencies
-fetch_step(Installation_Step, dependency(Name, DependencyTerm)):-
-    append(["scryer_libs/packages/", Name], DepRepo),
-    (
-    directory_exists(DepRepo) ->
-        Installation_Step = do_nothing(dependency(Name, DependencyTerm))
-    ;   Installation_Step = install_dependency(dependency(Name, DependencyTerm))
-    ).
+fetch_step(do_nothing(dependency(Name, DependencyTerm)), dependency(Name, DependencyTerm), Installed_Packages) :-
+    memberchk(Name, Installed_Packages),!.
+
+fetch_step(install_dependency(dependency(Name, DependencyTerm)), dependency(Name, DependencyTerm), Installed_Packages).
 
 % Execute the physical installation of the dependencies
 installation_execution(Plan, Results):-
