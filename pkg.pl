@@ -159,20 +159,12 @@ installation_report([P|Ps], Result_Report, Acc, Results):-
     report_installation_step(P, Result_Report, R),
     installation_report(Ps, Result_Report, [R|Acc], Results).
 
-% A message of an installation report 
-report_message([], _, error("the result was not reported")).
-
-report_message([result(Name, Message)| _], Name, Message) :- !.
-
-report_message([result(_, _)| Rs], Name, Message) :-
-    report_message(Rs, Name, Message).
-
 % The result of a logical step
 report_installation_step(do_nothing(dependency(Name, DependencyTerm)), _, do_nothing(dependency(Name, DependencyTerm))-success).
 
-report_installation_step(install_dependency(dependency(Name, DependencyTerm)), Result_Messages, Result):-
-    report_message(Result_Messages, Name, Message),
-    Result = install_dependency(dependency(Name, DependencyTerm))-Message.
+
+report_installation_step(install_dependency(dependency(Name, DependencyTerm)), ResultMessages, install_dependency(dependency(Name, DependencyTerm))-Message):-
+    memberchk(result(Name, Message), ResultMessages).
 
 % Execute the logical plan
 ensure_dependencies(Plan, Success) :-
