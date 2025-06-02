@@ -112,10 +112,13 @@ fetch_plan(Plan, Acc, [D|Ds], Installed_Packages) :-
     fetch_plan(Plan, [Installation_Step|Acc], Ds, Installed_Packages).
 
 % A step of a logical plan to fetch the dependencies
-fetch_step(do_nothing(dependency(Name, DependencyTerm)), dependency(Name, DependencyTerm), Installed_Packages) :-
-    memberchk(Name, Installed_Packages),!.
-
-fetch_step(install_dependency(dependency(Name, DependencyTerm)), dependency(Name, DependencyTerm), Installed_Packages).
+fetch_step(Step, dependency(Name, DependencyTerm), Installed_Packages) :-
+    memberd_t(Name, Installed_Packages, T),
+    if_(
+        T=true,
+        Step = do_nothing(dependency(Name, DependencyTerm)),
+        Step = install_dependency(dependency(Name, DependencyTerm))
+        ).
 
 % Execute the physical installation of the dependencies
 installation_execution(Plan, Results):-
