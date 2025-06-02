@@ -53,6 +53,8 @@ for dependency in "$@"; do
     printf "Ensuring is installed: %s\n" "${dependency_term}"
 
     case "${dependency_kind}" in
+        do_nothing)
+            ;;
         git_default)
             (
                 error_output=$(git clone \
