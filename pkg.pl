@@ -102,17 +102,17 @@ pkg_install(Report) :-
 
 % A logical plan to install the dependencies
 logical_plan(Plan, Ds, Installed_Packages) :-
-    fetch_plan(Plan, [], Ds, Installed_Packages).
+    fetch_plan(Ds, Plan, [], Installed_Packages).
 
 % A logical plan to fetch the dependencies
-fetch_plan(Acc, Acc, [], _).
+fetch_plan([], Acc, Acc, _).
 
-fetch_plan(Plan, Acc, [D|Ds], Installed_Packages) :-
-    fetch_step(Installation_Step, D, Installed_Packages),
-    fetch_plan(Plan, [Installation_Step|Acc], Ds, Installed_Packages).
+fetch_plan([D|Ds], Plan, Acc, Installed_Packages) :-
+    fetch_step(D, Installation_Step, Installed_Packages),
+    fetch_plan(Ds, Plan, [Installation_Step|Acc], Installed_Packages).
 
 % A step of a logical plan to fetch the dependencies
-fetch_step(Step, dependency(Name, DependencyTerm), Installed_Packages) :-
+fetch_step(dependency(Name, DependencyTerm), Step, Installed_Packages) :-
     memberd_t(Name, Installed_Packages, T),
     if_(
         T=true,
@@ -160,18 +160,18 @@ installation_report([P|Ps], Result_Report, Acc, Results):-
     installation_report(Ps, Result_Report, [R|Acc], Results).
 
 % A message of an installation report 
-report_message(_, [], error("the result was not reported")).
+report_message([], _, error("the result was not reported")).
 
-report_message(Name, [result(Name, Message)| _], Message) :- !.
+report_message([result(Name, Message)| _], Name, Message) :- !.
 
-report_message(Name, [result(_, _)| Rs], Message) :-
-    report_message(Name, Rs, Message).
+report_message([result(_, _)| Rs], Name, Message) :-
+    report_message(Rs, Name, Message).
 
 % The result of a logical step
 report_installation_step(do_nothing(dependency(Name, DependencyTerm)), _, do_nothing(dependency(Name, DependencyTerm))-success).
 
 report_installation_step(install_dependency(dependency(Name, DependencyTerm)), Result_Messages, Result):-
-    report_message(Name, Result_Messages, Message),
+    report_message(Result_Messages, Name, Message),
     Result = install_dependency(dependency(Name, DependencyTerm))-Message.
 
 % Execute the logical plan
