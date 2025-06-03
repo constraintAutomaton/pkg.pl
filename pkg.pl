@@ -39,7 +39,7 @@ parse_manifest(Filename, Manifest) :-
     open(Filename, read, Stream),
     phrase(prolog_file(Stream), Manifest),
     close(Stream).
-    
+
 % Link the pkg depedencies to the right physical module
 user:term_expansion((:- use_module(pkg(Package))), (:- use_module(PackageMainFile))) :-
     atom_chars(Package, PackageChars),
@@ -111,12 +111,11 @@ fetch_plan([D|Ds], Installed_Packages) -->
 
 % A step of a logical plan to fetch the dependencies
 fetch_step(dependency(Name, DependencyTerm), Step, Installed_Packages) :-
-    memberd_t(Name, Installed_Packages, T),
     if_(
-        T=true,
+        memberd_t(Name, Installed_Packages),
         Step = do_nothing(dependency(Name, DependencyTerm)),
         Step = install_dependency(dependency(Name, DependencyTerm))
-        ).
+    ).
 
 % Execute the physical installation of the dependencies
 installation_execution(Plan, Results):-
@@ -173,11 +172,11 @@ ensure_dependencies(Plan, Success) :-
 physical_plan([]) --> [].
 physical_plan([P|Ps]) --> {
     physical_plan_step(P, El),
-     if_(
+    if_(
         El = do_nothing,
         C="",
         append("|", El, C)
-      ) 
+    ) 
     },
     C,
     physical_plan(Ps).
