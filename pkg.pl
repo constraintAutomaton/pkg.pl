@@ -10,6 +10,7 @@
 :- use_module(library(format)).
 :- use_module(library(reif)).
 :- use_module(library(dcgs)).
+:- use_module(library(dif)).
 
 % Cleanly pass arguments to a script through environment variables
 run_script_with_args(ScriptName, Args, Success) :-
@@ -31,19 +32,14 @@ scryer_path(ScryerPath) :-
     ;   ScryerPath = "scryer_libs"
     ).
 
+prolog_file(Stream) --> {read(Stream, Term), dif(Term, end_of_file)}, [Term], prolog_file(Stream).
+prolog_file(Stream) --> {read(Stream, Term), Term == end_of_file}, [].
+
 parse_manifest(Filename, Manifest) :-
     open(Filename, read, Stream),
-    parse_manifest_(Stream, Manifest),
+    phrase(prolog_file(Stream), Manifest),
     close(Stream).
-
-parse_manifest_(Stream, Manifest) :-
-    read(Stream, Term),
-    (   Term == end_of_file ->
-        Manifest = []
-    ;   Manifest = [Term|Ms],
-        parse_manifest_(Stream, Ms)
-    ).
-
+    
 % Link the pkg depedencies to the right physical module
 user:term_expansion((:- use_module(pkg(Package))), (:- use_module(PackageMainFile))) :-
     atom_chars(Package, PackageChars),
@@ -142,16 +138,9 @@ fail_installation([P|Ps]) --> [P-error("installation script failed")], fail_inst
 % Parse the report of the installation of the dependencies
 parse_install_report(Result_List) :-
     open("scryer_libs/temp/install_resp.pl", read, Stream),
-    parse_install_report_(Stream, [], Result_List),
+    phrase(prolog_file(Stream), Result_List),
     close(Stream),
     delete_file("scryer_libs/temp/install_resp.pl").
-
-parse_install_report_(Stream, Acc, Result_List) :-
-    read(Stream, Term),
-    ( Term == end_of_file ->
-        Result_List= Acc
-    ; parse_install_report_(Stream, [Term | Acc], Result_List)
-    ).
 
 % The installation report of the dependencies
 installation_report([], _) --> [].
