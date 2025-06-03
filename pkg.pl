@@ -170,9 +170,8 @@ report_installation_step(install_dependency(dependency(Name, DependencyTerm)), R
 % Execute the logical plan
 ensure_dependencies(Plan, Success) :-
     phrase(physical_plan(Plan), Ls),
-    length(Ls, N),
     if_(
-        N=0,
+        Ls = [],
         D_String = Ls,
         Ls = [_|D_String]
     ),
