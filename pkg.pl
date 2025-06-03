@@ -11,6 +11,7 @@
 :- use_module(library(reif)).
 :- use_module(library(dcgs)).
 :- use_module(library(dif)).
+:- use_module(library(debug)).
 
 % Cleanly pass arguments to a script through environment variables
 run_script_with_args(ScriptName, Args, Success) :-
@@ -31,6 +32,109 @@ scryer_path(ScryerPath) :-
         true
     ;   ScryerPath = "scryer_libs"
     ).
+
+% A valid dependency
+valid_dependency([]) --> [].
+
+valid_dependency([dependency(Name, path(Path))| Ds]) --> 
+    {
+         memberd_t(Name, ";", T),
+         memberd_t(Name, "|", T),
+         memberd_t(Path, ";", T),
+         memberd_t(Path, "|", T),
+        if_(
+            T=false,
+            M = validate_dependency(dependency(Name, path(Path)))-success,
+            (
+                M = validate_dependency(dependency(Name, path(Path)))-error("the name and the path of the dependency should not contain an \";\" or an \"|\" caracter"),
+                current_output(Out),
+                phrase_to_stream(("Dependency ", portray_clause_(dependency(Name, path(Path))), "is malformed: the name and the path of the dependency should not contain an \";\" or an \"|\" caracter"), Out)
+            )
+        )
+    },
+    [M],
+    valid_dependency(Ds).
+
+valid_dependency([dependency(Name, git(Url))| Ds]) --> { 
+     memberd_t(Name, ";", T),
+     memberd_t(Name, "|", T),
+     memberd_t(Url,";", T),
+     memberd_t(Url, "|", T),
+    if_(
+        T=false,
+        M = validate_dependency(dependency(Name, git(Url)))-success,
+        (
+            M = validate_dependency(dependency(Name, git(Url)))-error("the name of the dependency and the url should not contain an \";\" or an \"|\" caracter"),
+            current_output(Out),
+            phrase_to_stream(("Dependency ", portray_clause_(dependency(Name, git(Url))), "is malformed: the name of the dependency or the url should not contain an \";\" or an \"|\" caracter"), Out)
+        )
+    )
+    },
+    [M],
+    valid_dependency(Ds).
+
+valid_dependency([dependency(Name, git(Url, branch(Branch)))| Ds]) --> { 
+     memberd_t(Name, ";", T),
+     memberd_t(Name, "|", T),
+     memberd_t(Url,";", T),
+     memberd_t(Url, "|", T),
+     memberd_t(Branch, ";", T),
+     memberd_t(Branch, "|", T),
+    if_(
+        T=false,
+        M = validate_dependency(dependency(Name, git(Url, branch(Branch))))-success,
+        (
+            M = validate_dependency(dependency(Name, git(Url, branch(Branch))))-error("the name, the url and the branch of dependency should not contain an \";\" or an \"|\" caracter"),
+            current_output(Out),
+            phrase_to_stream(("Dependency ", portray_clause_(dependency(Name, git(Url, branch(Branch)))), "is malformed: the name, the url and the branch of dependency should not contain an \";\" or an \"|\" caracter"), Out)
+        )
+    )
+    },
+    [M],
+    valid_dependency(Ds).
+
+valid_dependency([dependency(Name, git(Url, tag(Tag)))|Ds]) --> { 
+     memberd_t(Name, ";", T),
+     memberd_t(Name, "|", T),
+     memberd_t(Url,";", T),
+     memberd_t(Url, "|", T),
+     memberd_t(Tag,";", T),
+     memberd_t(Tag,"|", T),
+    if_(
+        T=false,
+        M = validate_dependency(dependency(Name, git(Url, tag(Tag))))-success,
+        (
+            M = validate_dependency(dependency(Name, git(Url, tag(Tag))))-error("the name, the url and the tag of dependency should not contain an \";\" or an \"|\" caracter"),
+            current_output(Out),
+            phrase_to_stream(("Dependency ", portray_clause_(dependency(Name, git(Url, tag(Tag)))), "is malformed: the name, the url and the tag of dependency should not contain an \";\" or an \"|\" caracter"), Out)
+        )
+    )
+    },
+    [M],
+    valid_dependency(Ds).
+
+valid_dependency([dependency(Name, git(Url, hash(Hash)))|Ds]) --> { 
+     memberd_t(Name, ";", T),
+     memberd_t(Name, "|", T),
+     memberd_t(Url,";", T),
+     memberd_t(Url, "|", T),
+     memberd_t( Hash, ";", T),
+     memberd_t(Hash,"|", T),
+    if_(
+        T=false,
+        M = validate_dependency(dependency(Name, git(Url, hash(Hash))))-success,
+        (
+            M = validate_dependency(dependency(Name, git(Url, hash(Hash))))-error("the name, the url and the hash of dependency should not contain an \";\" or an \"|\" caracter"),
+            current_output(Out),
+            phrase_to_stream(("Dependency ", portray_clause_(dependency(Name, git(Url, hash(Hash)))), "is malformed: the name, the url and the hash of dependency should not contain an \";\" or an \"|\" caracter"), Out)
+        )
+    )
+    },
+    [M],
+    valid_dependency(Ds).
+
+all_dependencies_valid([]).
+all_dependencies_valid([validate_dependency(_)-success| Vs]) :- all_dependencies_valid(Vs).
 
 % A prolog file knowledge base represented as a list of terms
 prolog_kb_list(Stream) --> {read(Stream, Term), dif(Term, end_of_file)}, [Term], prolog_kb_list(Stream).
@@ -84,18 +188,26 @@ ensure_script(Name-String) :-
 
 % Predicate to install the dependencies
 pkg_install(Report) :-
-    parse_manifest("scryer-manifest.pl", Manifest),
-    ensure_scryer_libs,
-    setenv("SHELL", "/bin/sh"),
-    setenv("GIT_ADVICE", "0"),
-    directory_files("scryer_libs/packages", Installed_Packages),
-    if_(
-        memberd_t(dependencies(Deps), Manifest),
-        logical_plan(Plan, Deps, Installed_Packages),
-        true
-    ),
-    installation_execution(Plan, Report),
-    delete_directory("scryer_libs/temp").
+    once((
+        parse_manifest("scryer-manifest.pl", Manifest),
+        ensure_scryer_libs,
+        setenv("SHELL", "/bin/sh"),
+        setenv("GIT_ADVICE", "0"),
+        directory_files("scryer_libs/packages", Installed_Packages),
+        (
+            (
+                member(dependencies(Deps), Manifest),
+                phrase(valid_dependency(Deps), Validation_Report),
+                logical_plan(Plan, Deps, Installed_Packages),
+                all_dependencies_valid(Validation_Report)
+            )
+            ;
+            Plan = []
+        ),
+        installation_execution(Plan, Installation_Report),
+        append([Validation_Report, Installation_Report], Report),
+        delete_directory("scryer_libs/temp")
+    )).
 
 % A logical plan to install the dependencies
 logical_plan(Plan, Ds, Installed_Packages) :-
