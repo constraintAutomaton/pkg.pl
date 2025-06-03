@@ -80,8 +80,6 @@ ensure_script(Name-String) :-
     append(["scryer_libs/scripts/", Name, ".sh"], Path),
     phrase_to_file(String, Path).
 
-pkg_installed(Packages) :-
-    directory_files("scryer_libs/packages", Packages).
 
 % Predicate to install the dependencies
 pkg_install(Report) :-
@@ -89,12 +87,10 @@ pkg_install(Report) :-
     ensure_scryer_libs,
     setenv("SHELL", "/bin/sh"),
     setenv("GIT_ADVICE", "0"),
+    directory_files("scryer_libs/packages", Installed_Packages),
     if_(
         memberd_t(dependencies(Deps), Manifest),
-        (
-            pkg_installed(Installed_Packages),
-            logical_plan(Plan, Deps, Installed_Packages)
-        ),
+        logical_plan(Plan, Deps, Installed_Packages),
         true
     ),
     installation_execution(Plan, Report),
