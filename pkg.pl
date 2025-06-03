@@ -36,17 +36,16 @@ scryer_path(ScryerPath) :-
 valid_dependency([]) --> [].
 
 valid_dependency([dependency(Name, path(Path))| Ds]) --> {
-        
-        (
-            member(Name, ";")
-            ; member(Name, "|")
-            ; member(Path, ";")
-            ; member(Path, "|"),
-            M = validate_dependency(dependency(Name, path(Path)))-error("the name and the path of the dependency should not contain an \";\" or an \"|\" caracter"),
-            current_output(Out),
-            phrase_to_stream(("Dependency ", portray_clause_(dependency(Name, path(Path))), "is malformed: the name and the path of the dependency should not contain an \";\" or an \"|\" caracter"), Out)
-        )
-        ; M = validate_dependency(dependency(Name, path(Path)))-success
+    (
+        member(Name, ";")
+        ; member(Name, "|")
+        ; member(Path, ";")
+        ; member(Path, "|"),
+        M = validate_dependency(dependency(Name, path(Path)))-error("the name and the path of the dependency should not contain an \";\" or an \"|\" caracter"),
+        current_output(Out),
+        phrase_to_stream(("Dependency ", portray_clause_(dependency(Name, path(Path))), "is malformed: the name and the path of the dependency should not contain an \";\" or an \"|\" caracter"), Out)
+    )
+    ; M = validate_dependency(dependency(Name, path(Path)))-success
     },
     [M],
     valid_dependency(Ds).
