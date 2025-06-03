@@ -120,11 +120,10 @@ fetch_step(dependency(Name, DependencyTerm), Step, Installed_Packages) :-
 % Execute the physical installation of the dependencies
 installation_execution(Plan, Results):-
     ensure_dependencies(Plan, Success),
-    (
-        Success == false ->
-        phrase(fail_installation(Plan), Results)
-        ;   true
-
+    if_(
+        Success = false,
+        phrase(fail_installation(Plan), Results),
+        true
     ),
     parse_install_report(Result_Report),
     phrase(installation_report(Plan, Result_Report), Results).
