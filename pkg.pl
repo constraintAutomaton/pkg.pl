@@ -89,10 +89,13 @@ pkg_install(Report) :-
     ensure_scryer_libs,
     setenv("SHELL", "/bin/sh"),
     setenv("GIT_ADVICE", "0"),
-    (   member(dependencies(Deps), Manifest) ->
-        pkg_installed(Installed_Packages),
-        logical_plan(Plan, Deps, Installed_Packages)
-    ;   true
+    if_(
+        memberd_t(dependencies(Deps), Manifest),
+        (
+            pkg_installed(Installed_Packages),
+            logical_plan(Plan, Deps, Installed_Packages)
+        ),
+        true
     ),
     installation_execution(Plan, Report),
     delete_directory("scryer_libs/temp").
