@@ -8,7 +8,6 @@
 :- use_module(library(lists)).
 :- use_module(library(charsio)).
 :- use_module(library(format)).
-:- use_module(library(reif)).
 :- use_module(library(dcgs)).
 :- use_module(library(dif)).
 :- use_module(library(debug)).
@@ -36,99 +35,86 @@ scryer_path(ScryerPath) :-
 % A valid dependency
 valid_dependency([]) --> [].
 
-valid_dependency([dependency(Name, path(Path))| Ds]) --> 
-    {
-         memberd_t(Name, ";", T),
-         memberd_t(Name, "|", T),
-         memberd_t(Path, ";", T),
-         memberd_t(Path, "|", T),
-        if_(
-            T=false,
-            M = validate_dependency(dependency(Name, path(Path)))-success,
-            (
-                M = validate_dependency(dependency(Name, path(Path)))-error("the name and the path of the dependency should not contain an \";\" or an \"|\" caracter"),
-                current_output(Out),
-                phrase_to_stream(("Dependency ", portray_clause_(dependency(Name, path(Path))), "is malformed: the name and the path of the dependency should not contain an \";\" or an \"|\" caracter"), Out)
-            )
+valid_dependency([dependency(Name, path(Path))| Ds]) --> {
+        
+        (
+            member(Name, ";")
+            ; member(Name, "|")
+            ; member(Path, ";")
+            ; member(Path, "|"),
+            M = validate_dependency(dependency(Name, path(Path)))-error("the name and the path of the dependency should not contain an \";\" or an \"|\" caracter"),
+            current_output(Out),
+            phrase_to_stream(("Dependency ", portray_clause_(dependency(Name, path(Path))), "is malformed: the name and the path of the dependency should not contain an \";\" or an \"|\" caracter"), Out)
         )
+        ; M = validate_dependency(dependency(Name, path(Path)))-success
     },
     [M],
     valid_dependency(Ds).
 
 valid_dependency([dependency(Name, git(Url))| Ds]) --> { 
-     memberd_t(Name, ";", T),
-     memberd_t(Name, "|", T),
-     memberd_t(Url,";", T),
-     memberd_t(Url, "|", T),
-    if_(
-        T=false,
-        M = validate_dependency(dependency(Name, git(Url)))-success,
-        (
-            M = validate_dependency(dependency(Name, git(Url)))-error("the name of the dependency and the url should not contain an \";\" or an \"|\" caracter"),
-            current_output(Out),
-            phrase_to_stream(("Dependency ", portray_clause_(dependency(Name, git(Url))), "is malformed: the name of the dependency or the url should not contain an \";\" or an \"|\" caracter"), Out)
-        )
+    (
+        member(Name, ";")
+        ; member(Name, "|")
+        ; member(Url,";")
+        ; member(Url, "|"),
+        M = validate_dependency(dependency(Name, git(Url)))-error("the name of the dependency and the url should not contain an \";\" or an \"|\" caracter"),
+        current_output(Out),
+        phrase_to_stream(("Dependency ", portray_clause_(dependency(Name, git(Url))), "is malformed: the name of the dependency or the url should not contain an \";\" or an \"|\" caracter"), Out)
     )
+    ; M = validate_dependency(dependency(Name, git(Url)))-success
+    
     },
     [M],
     valid_dependency(Ds).
 
 valid_dependency([dependency(Name, git(Url, branch(Branch)))| Ds]) --> { 
-     memberd_t(Name, ";", T),
-     memberd_t(Name, "|", T),
-     memberd_t(Url,";", T),
-     memberd_t(Url, "|", T),
-     memberd_t(Branch, ";", T),
-     memberd_t(Branch, "|", T),
-    if_(
-        T=false,
-        M = validate_dependency(dependency(Name, git(Url, branch(Branch))))-success,
-        (
-            M = validate_dependency(dependency(Name, git(Url, branch(Branch))))-error("the name, the url and the branch of dependency should not contain an \";\" or an \"|\" caracter"),
-            current_output(Out),
-            phrase_to_stream(("Dependency ", portray_clause_(dependency(Name, git(Url, branch(Branch)))), "is malformed: the name, the url and the branch of dependency should not contain an \";\" or an \"|\" caracter"), Out)
-        )
+    (
+        member(Name, ";")
+        ; member(Name, "|")
+        ; member(Url,";")
+        ; member(Url, "|")
+        ; member(Branch, ";")
+        ; member(Branch, "|"),
+        M = validate_dependency(dependency(Name, git(Url, branch(Branch))))-error("the name, the url and the branch of dependency should not contain an \";\" or an \"|\" caracter"),
+        current_output(Out),
+        phrase_to_stream(("Dependency ", portray_clause_(dependency(Name, git(Url, branch(Branch)))), "is malformed: the name, the url and the branch of dependency should not contain an \";\" or an \"|\" caracter"), Out)
     )
+    ;  M = validate_dependency(dependency(Name, git(Url, branch(Branch))))-success
     },
     [M],
     valid_dependency(Ds).
 
 valid_dependency([dependency(Name, git(Url, tag(Tag)))|Ds]) --> { 
-     memberd_t(Name, ";", T),
-     memberd_t(Name, "|", T),
-     memberd_t(Url,";", T),
-     memberd_t(Url, "|", T),
-     memberd_t(Tag,";", T),
-     memberd_t(Tag,"|", T),
-    if_(
-        T=false,
-        M = validate_dependency(dependency(Name, git(Url, tag(Tag))))-success,
-        (
-            M = validate_dependency(dependency(Name, git(Url, tag(Tag))))-error("the name, the url and the tag of dependency should not contain an \";\" or an \"|\" caracter"),
-            current_output(Out),
-            phrase_to_stream(("Dependency ", portray_clause_(dependency(Name, git(Url, tag(Tag)))), "is malformed: the name, the url and the tag of dependency should not contain an \";\" or an \"|\" caracter"), Out)
-        )
+    (
+        member(Name, ";")
+        ; member(Name, "|")
+        ; member(Url,";")
+        ; member(Url, "|")
+        ; member(Tag,";")
+        ; member(Tag,"|"),
+        M = validate_dependency(dependency(Name, git(Url, tag(Tag))))-error("the name, the url and the tag of dependency should not contain an \";\" or an \"|\" caracter"),
+        current_output(Out),
+        phrase_to_stream(("Dependency ", portray_clause_(dependency(Name, git(Url, tag(Tag)))), "is malformed: the name, the url and the tag of dependency should not contain an \";\" or an \"|\" caracter"), Out)
     )
+    ; M = validate_dependency(dependency(Name, git(Url, tag(Tag))))-success
     },
     [M],
     valid_dependency(Ds).
 
 valid_dependency([dependency(Name, git(Url, hash(Hash)))|Ds]) --> { 
-     memberd_t(Name, ";", T),
-     memberd_t(Name, "|", T),
-     memberd_t(Url,";", T),
-     memberd_t(Url, "|", T),
-     memberd_t( Hash, ";", T),
-     memberd_t(Hash,"|", T),
-    if_(
-        T=false,
-        M = validate_dependency(dependency(Name, git(Url, hash(Hash))))-success,
-        (
-            M = validate_dependency(dependency(Name, git(Url, hash(Hash))))-error("the name, the url and the hash of dependency should not contain an \";\" or an \"|\" caracter"),
-            current_output(Out),
-            phrase_to_stream(("Dependency ", portray_clause_(dependency(Name, git(Url, hash(Hash)))), "is malformed: the name, the url and the hash of dependency should not contain an \";\" or an \"|\" caracter"), Out)
-        )
+    (
+        member(Name, ";")
+        ; member(Name, "|")
+        ; member(Url,";")
+        ; member(Url, "|")
+        ; member( Hash, ";")
+        ; member(Hash,"|"),
+        M = validate_dependency(dependency(Name, git(Url, hash(Hash))))-error("the name, the url and the hash of dependency should not contain an \";\" or an \"|\" caracter"),
+        current_output(Out),
+        phrase_to_stream(("Dependency ", portray_clause_(dependency(Name, git(Url, hash(Hash)))), "is malformed: the name, the url and the hash of dependency should not contain an \";\" or an \"|\" caracter"), Out)
     )
+    ; M = validate_dependency(dependency(Name, git(Url, hash(Hash))))-success
+    
     },
     [M],
     valid_dependency(Ds).
@@ -223,19 +209,19 @@ fetch_plan([D|Ds], Installed_Packages) -->
 
 % A step of a logical plan to fetch the dependencies
 fetch_step(dependency(Name, DependencyTerm), Step, Installed_Packages) :-
-    if_(
-        memberd_t(Name, Installed_Packages),
-        Step = do_nothing(dependency(Name, DependencyTerm)),
-        Step = install_dependency(dependency(Name, DependencyTerm))
+    (
+        member(Name, Installed_Packages),
+        Step = do_nothing(dependency(Name, DependencyTerm))
+        ; Step = install_dependency(dependency(Name, DependencyTerm))
     ).
 
 % Execute the physical installation of the dependencies
 installation_execution(Plan, Results):-
     ensure_dependencies(Plan, Success),
-    if_(
+    (
         Success = false,
-        phrase(fail_installation(Plan), Results),
-        true
+        phrase(fail_installation(Plan), Results)
+        ; true
     ),
     parse_install_report(Result_Report),
     phrase(installation_report(Plan, Result_Report), Results).
@@ -269,10 +255,10 @@ report_installation_step(install_dependency(dependency(Name, DependencyTerm)), R
 % Execute the logical plan
 ensure_dependencies(Plan, Success) :-
     phrase(physical_plan(Plan), Ls),
-    if_(
-        Ls = [],
-        D_String = Ls,
-        Ls = [_|D_String]
+    (
+        Ls == [],
+        D_String = Ls
+        ; Ls = [_|D_String]
     ),
     Args = [
         "DEPENDENCIES_STRING"-D_String
@@ -283,11 +269,12 @@ ensure_dependencies(Plan, Success) :-
 physical_plan([]) --> [].
 physical_plan([P|Ps]) --> {
     physical_plan_step(P, El),
-    if_(
+    (
         El = do_nothing,
-        C="",
+        C=""
+        ;
         append("|", El, C)
-    ) 
+    )
     },
     C,
     physical_plan(Ps).
