@@ -32,12 +32,13 @@ scryer_path(ScryerPath) :-
     ;   ScryerPath = "scryer_libs"
     ).
 
-prolog_file(Stream) --> {read(Stream, Term), dif(Term, end_of_file)}, [Term], prolog_file(Stream).
-prolog_file(Stream) --> {read(Stream, Term), Term == end_of_file}, [].
+% A prolog file knowledge base represented as a list of terms
+prolog_kb_list(Stream) --> {read(Stream, Term), dif(Term, end_of_file)}, [Term], prolog_kb_list(Stream).
+prolog_kb_list(Stream) --> {read(Stream, Term), Term == end_of_file}, [].
 
 parse_manifest(Filename, Manifest) :-
     open(Filename, read, Stream),
-    phrase(prolog_file(Stream), Manifest),
+    phrase(prolog_kb_list(Stream), Manifest),
     close(Stream).
 
 % Link the pkg depedencies to the right physical module
@@ -135,7 +136,7 @@ fail_installation([P|Ps]) --> [P-error("installation script failed")], fail_inst
 % Parse the report of the installation of the dependencies
 parse_install_report(Result_List) :-
     open("scryer_libs/temp/install_resp.pl", read, Stream),
-    phrase(prolog_file(Stream), Result_List),
+    phrase(prolog_kb_list(Stream), Result_List),
     close(Stream),
     delete_file("scryer_libs/temp/install_resp.pl").
 
