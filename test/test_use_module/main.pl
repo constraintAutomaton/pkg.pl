@@ -5,6 +5,7 @@
 :- use_module(pkg(test_hash)).
 :- use_module(pkg(test_local)).
 :- use_module('../util_packages/scryer_libs/packages/testing/testing.pl').
+:- use_module('../util_packages/assert.pl').
 
 main :-
     run_tests.

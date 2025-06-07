@@ -1,5 +1,6 @@
 :- use_module(pkg).
 :- use_module('../util_packages/scryer_libs/packages/testing/testing.pl').
+:- use_module('../util_packages/assert.pl').
 :- use_module(library(ordsets)).
 :- use_module(library(pio)).
 :- use_module(library(format)).
@@ -23,15 +24,6 @@ test("the package report is valid", (
             install_dependency(dependency("test_hash", git("https://github.com/constraintAutomaton/test-prolog-package-manager.git", hash("abc"))))-error(_),
             install_dependency(dependency("test_local", path("./local_package_")))-error(_)
         ], Expected),
-        (
-            % We need to check for unification because we are not testing the specific error
-            X_Set = Expected
-            ;
-            (
-                current_output(Out),
-                phrase_to_stream(("expected: \n\n", portray_clause_(Expected), "\nbut got: \n\n", portray_clause_(X_Set)), Out),
-                false
-            )
-        )
+        test_eq(X_Set, Expected)
     )
 ).
