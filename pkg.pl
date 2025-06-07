@@ -39,9 +39,9 @@ user_message_malformed_dependency(D, Error):-
     phrase_to_stream((portray_clause_(D), "is malformed: ", Error, "\n"), Out).
 
 % A valid dependency
-valid_dependency([]) --> [].
+valid_dependencies([]) --> [].
 
-valid_dependency([dependency(Name, path(Path))| Ds]) --> {
+valid_dependencies([dependency(Name, path(Path))| Ds]) --> {
     if_(
         (memberd_t(';', Name)
         ; memberd_t('|', Name)
@@ -57,9 +57,9 @@ valid_dependency([dependency(Name, path(Path))| Ds]) --> {
     )
     },
     [M],
-    valid_dependency(Ds).
+    valid_dependencies(Ds).
 
-valid_dependency([dependency(Name, git(Url))| Ds]) --> { 
+valid_dependencies([dependency(Name, git(Url))| Ds]) --> { 
     if_(
         (memberd_t(';', Name)
             ; memberd_t('|', Name)
@@ -75,9 +75,9 @@ valid_dependency([dependency(Name, git(Url))| Ds]) --> {
     )
     },
     [M],
-    valid_dependency(Ds).
+    valid_dependencies(Ds).
 
-valid_dependency([dependency(Name, git(Url, branch(Branch)))| Ds]) --> { 
+valid_dependencies([dependency(Name, git(Url, branch(Branch)))| Ds]) --> { 
     if_(
         (memberd_t(';', Name)
         ; memberd_t('|', Name)
@@ -95,9 +95,9 @@ valid_dependency([dependency(Name, git(Url, branch(Branch)))| Ds]) --> {
     )
     },
     [M],
-    valid_dependency(Ds).
+    valid_dependencies(Ds).
 
-valid_dependency([dependency(Name, git(Url, tag(Tag)))|Ds]) --> { 
+valid_dependencies([dependency(Name, git(Url, tag(Tag)))|Ds]) --> { 
     if_(
         (memberd_t(';', Name)
         ; memberd_t('|', Name)
@@ -114,9 +114,9 @@ valid_dependency([dependency(Name, git(Url, tag(Tag)))|Ds]) --> {
     )
     },
     [M],
-    valid_dependency(Ds).
+    valid_dependencies(Ds).
 
-valid_dependency([dependency(Name, git(Url, hash(Hash)))|Ds]) --> { 
+valid_dependencies([dependency(Name, git(Url, hash(Hash)))|Ds]) --> { 
     if_(
         (memberd_t(';', Name)
         ; memberd_t('|', Name)
@@ -133,7 +133,7 @@ valid_dependency([dependency(Name, git(Url, hash(Hash)))|Ds]) --> {
     )
     },
     [M],
-    valid_dependency(Ds).
+    valid_dependencies(Ds).
 
 all_dependencies_valid_t([], true).
 all_dependencies_valid_t([validate_dependency(_)-success| Vs], T) :-  all_dependencies_valid_t(Vs, T).
@@ -199,7 +199,7 @@ pkg_install(Report) :-
         directory_files("scryer_libs/packages", Installed_Packages),
         if_(memberd_t(dependencies(Deps), Manifest),
             (
-                phrase(valid_dependency(Deps), Validation_Report),
+                phrase(valid_dependencies(Deps), Validation_Report),
                 if_(all_dependencies_valid_t(Validation_Report),
                     (
                         logical_plan(Plan, Deps, Installed_Packages),
