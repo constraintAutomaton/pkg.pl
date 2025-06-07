@@ -1,6 +1,6 @@
 % a Value unified with the Expected value and report to the current output if it does not unified
-test_eq(Value, Expected) :-
-    Value = Expected ->
+test_unify(Value, Expected) :-
+    (nonvar(Value), Value = Expected) ->
         true
     ; (
         current_output(Out),

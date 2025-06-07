@@ -26,6 +26,6 @@ test("the package report is valid", (
             install_dependency(dependency("test_local", path("./local_package")))-success,
             install_dependency(dependency("error", path("./bar")))-error(_)
         ], Expected),
-        test_eq(X_Set, Expected)
+        test_unify(X_Set, Expected)
     )
 ).
