@@ -135,9 +135,9 @@ valid_dependency([dependency(Name, git(Url, hash(Hash)))|Ds]) --> {
     [M],
     valid_dependency(Ds).
 
-all_dependencies_valid([], true).
-all_dependencies_valid([validate_dependency(_)-success| Vs], T) :-  all_dependencies_valid(Vs, T).
-all_dependencies_valid([validate_dependency(_)-error(_)| _], false).
+all_dependencies_valid_t([], true).
+all_dependencies_valid_t([validate_dependency(_)-success| Vs], T) :-  all_dependencies_valid_t(Vs, T).
+all_dependencies_valid_t([validate_dependency(_)-error(_)| _], false).
 
 
 % A prolog file knowledge base represented as a list of terms
@@ -200,7 +200,7 @@ pkg_install(Report) :-
         if_(memberd_t(dependencies(Deps), Manifest),
             (
                 phrase(valid_dependency(Deps), Validation_Report),
-                if_(all_dependencies_valid(Validation_Report),
+                if_(all_dependencies_valid_t(Validation_Report),
                     (
                         logical_plan(Plan, Deps, Installed_Packages),
                         installation_execution(Plan, Installation_Report),
