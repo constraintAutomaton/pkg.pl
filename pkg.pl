@@ -149,7 +149,7 @@ parse_manifest(Filename, Manifest) :-
     phrase(prolog_kb_list(Stream), Manifest),
     close(Stream).
 
-% Link the pkg depedencies to the right physical module
+% pkg depedencies associated with the corresponding physical module
 user:term_expansion((:- use_module(pkg(Package))), (:- use_module(PackageMainFile))) :-
     atom_chars(Package, PackageChars),
     scryer_path(ScryerPath),
