@@ -197,7 +197,7 @@ pkg_install(Report) :-
         setenv("SHELL", "/bin/sh"),
         setenv("GIT_ADVICE", "0"),
         directory_files("scryer_libs/packages", Installed_Packages),
-        if_(memberd_t(dependencies(Deps), Manifest),
+        (member(dependencies(Deps), Manifest) ->
             (
                 phrase(valid_dependencies(Deps), Validation_Report),
                 if_(all_dependencies_valid_t(Validation_Report),
@@ -211,8 +211,7 @@ pkg_install(Report) :-
                         Report = Validation_Report
                     )
                 )
-            ),
-            Report = []
+            );  Report = []
         ).
 
 % A logical plan to install the dependencies
