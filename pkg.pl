@@ -146,7 +146,7 @@ prolog_kb_list(Stream) --> {read(Stream, Term), Term == end_of_file}, [].
 
 parse_manifest(Filename, Manifest) :-
     open(Filename, read, Stream),
-    phrase(prolog_kb_list(Stream), Manifest),
+    once(phrase(prolog_kb_list(Stream), Manifest)),
     close(Stream).
 
 % pkg depedencies associated with the corresponding physical module
