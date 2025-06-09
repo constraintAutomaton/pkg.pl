@@ -11,6 +11,7 @@
 :- use_module(library(dcgs)).
 :- use_module(library(dif)).
 :- use_module(library(reif)).
+:- use_module(library(iso_ext)).
 :- use_module(library(debug)).
 
 % Cleanly pass arguments to a script through environment variables
@@ -145,9 +146,11 @@ prolog_kb_list(Stream) --> {read(Stream, Term), dif(Term, end_of_file)}, [Term],
 prolog_kb_list(Stream) --> {read(Stream, Term), Term == end_of_file}, [].
 
 parse_manifest(Filename, Manifest) :-
-    open(Filename, read, Stream),
-    once(phrase(prolog_kb_list(Stream), Manifest)),
-    close(Stream).
+    setup_call_cleanup(
+        open(Filename, read, Stream),
+        once(phrase(prolog_kb_list(Stream), Manifest)),
+        close(Stream)
+    ).
 
 % pkg depedencies associated with the corresponding physical module
 user:term_expansion((:- use_module(pkg(Package))), (:- use_module(PackageMainFile))) :-
@@ -201,10 +204,12 @@ pkg_install(Report) :-
             (
                 phrase(valid_dependencies(Deps), Validation_Report),
                 if_(all_dependencies_valid_t(Validation_Report),
-                    (
+                    call_cleanup(
+                        (
                         logical_plan(Plan, Deps, Installed_Packages),
                         installation_execution(Plan, Installation_Report),
-                        append(Validation_Report, Installation_Report, Report),
+                        append(Validation_Report, Installation_Report, Report)
+                        ),
                         delete_directory("scryer_libs/temp")
                     ),
                     (
@@ -250,10 +255,17 @@ fail_installation([P|Ps]) --> [P-error("installation script failed")], fail_inst
 
 % Parse the report of the installation of the dependencies
 parse_install_report(Result_List) :-
-    open("scryer_libs/temp/install_resp.pl", read, Stream),
-    phrase(prolog_kb_list(Stream), Result_List),
-    close(Stream),
-    delete_file("scryer_libs/temp/install_resp.pl").
+    setup_call_cleanup(
+        open("scryer_libs/temp/install_resp.pl", read, Stream),
+        once(phrase(prolog_kb_list(Stream), Result_List)),
+        (
+            close(Stream),
+            ( file_exists("scryer_libs/temp/install_resp.pl")->
+                delete_file("scryer_libs/temp/install_resp.pl")
+            ; true
+            )
+        )
+    ).
 
 % The installation report of the dependencies
 installation_report([], _) --> [].
