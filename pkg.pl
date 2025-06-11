@@ -284,26 +284,27 @@ report_installation_step(install_dependency(dependency(Name, DependencyTerm)), R
 % Execute the logical plan
 ensure_dependencies(Logical_Plan, Success) :-
     phrase(physical_plan(Logical_Plan), Physical_Plan),
-    phrase(array_like_physical_plan(Physical_Plan), Array_Physical_Plan),
     Args = [
-        "DEPENDENCIES_STRING"-Array_Physical_Plan
+        "DEPENDENCIES_STRING"-Physical_Plan
     ],
     run_script_with_args("ensure_dependencies", Args, Success).
 
-% A physical plan in an array like structure
-array_like_physical_plan([]) --> [].
-array_like_physical_plan([Pp|Pps]) --> array_like_physical_plan_([Pp|Pps]).
-
-array_like_physical_plan_([Pp]) --> Pp.
-array_like_physical_plan_([Pp|Pps]) --> Pp, "|", array_like_physical_plan_(Pps).
 
 % Create a physical plan in shell script
 physical_plan([]) --> [].
-physical_plan([P|Ps]) --> {
+physical_plan([P|Ps]) --> physical_plan_([P|Ps]).
+
+physical_plan_([P]) --> {
     physical_plan_step(P, El)
     },
-    [El],
-    physical_plan(Ps).
+    El.
+
+physical_plan_([P|Ps]) --> {
+    physical_plan_step(P, El)
+    },
+    El, 
+    "|",
+    physical_plan_(Ps).
 
 % Create a step for the shell script physical plan  
 physical_plan_step(do_nothing(dependency(Name, D)) , El) :-
