@@ -192,7 +192,12 @@ ensure_script(Name-String) :-
     append(["scryer_libs/scripts/", Name, ".sh"], Path),
     phrase_to_file(String, Path).
 
-
+locked_dependencies(Ls):- 
+    file_exists("manifest-lock.pl") -> 
+        parse_manifest("manifest-lock.pl", LockFile),
+        member(lock_dependencies(Ls), LockFile)
+        ;   Ls = []
+                
 % Predicate to install the dependencies
 pkg_install(Report) :-
         parse_manifest("scryer-manifest.pl", Manifest),
@@ -206,7 +211,8 @@ pkg_install(Report) :-
                 if_(all_dependencies_valid_t(Validation_Report),
                     call_cleanup(
                         (
-                        logical_plan(Plan, Deps, Installed_Packages),
+                        locked_dependencies(Locked_Dependencies),
+                        logical_plan(Plan, Deps, Installed_Packages, Locked_Dependencies),
                         installation_execution(Plan, Installation_Report),
                         append(Validation_Report, Installation_Report, Report)
                         ),
@@ -220,22 +226,28 @@ pkg_install(Report) :-
         ).
 
 % A logical plan to install the dependencies
-logical_plan(Plan, Ds, Installed_Packages) :-
-    phrase(fetch_plan(Ds, Installed_Packages), Plan).
+logical_plan(Plan, Ds, Installed_Packages, Locked_Dependencies) :-
+    phrase(fetch_plan(Ds, Installed_Packages, Locked_Dependencies), Plan).
 
 % A logical plan to fetch the dependencies
-fetch_plan([], _) --> [].
-fetch_plan([D|Ds], Installed_Packages) --> 
-    {fetch_step(D, Installation_Step, Installed_Packages)},
+fetch_plan([], _, _) --> [].
+fetch_plan([D|Ds], Installed_Packages, Locked_Dependencies) --> 
+    {fetch_step(D, Installation_Step, Installed_Packages, Locked_Dependencies)},
     [Installation_Step],
-    fetch_plan(Ds, Installed_Packages).
+    fetch_plan(Ds, Installed_Packages, Locked_Dependencies).
 
+do_nothing(X) :- do_nothing(X, do_nothing).
 
 % A step of a logical plan to fetch the dependencies
-fetch_step(dependency(Name, DependencyTerm), Step, Installed_Packages) :-
+fetch_step(dependency(Name, DependencyTerm), Step, Installed_Packages, Locked_Dependencies) :-
     if_(memberd_t(Name, Installed_Packages),
         Step = do_nothing(dependency(Name, DependencyTerm)),
-        Step = install_dependency(dependency(Name, DependencyTerm))
+        (
+            if_(memberd_t(dependency(Name, X), Locked_Dependencies),
+                Step = install_locked_dependency(dependency(Name, DependencyTerm), do_nothing),
+                Step = install_dependency(dependency(Name, DependencyTerm), lock)
+            )
+        )
     ).
 
 % Execute the physical installation of the dependencies
