@@ -1,6 +1,9 @@
 #!/bin/sh
 set -u
 
+# Fail instead of prompting for password in git commands.
+export GIT_TERMINAL_PROMPT=0
+
 write_result() {
     flock scryer_libs/temp/install_resp.pl.lock -c \
         "printf 'result(\"%s\", %s).\n' \"$1\" \"$2\" >> scryer_libs/temp/install_resp.pl"
