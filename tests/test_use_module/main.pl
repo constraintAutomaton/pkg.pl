@@ -1,4 +1,4 @@
-:- use_module(pkg).
+:- use_module(bakage).
 :- use_module(pkg(test)).
 :- use_module(pkg(test_branch)).
 :- use_module(pkg(test_tag)).

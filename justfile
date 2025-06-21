@@ -2,13 +2,13 @@ default:
     @just --list
 
 build: codegen
-    mv pkg.pl.gen pkg.pl
+    mv bakage.pl.gen bakage.pl
 
 codegen:
     #!/bin/sh
     set -eu
 
-    sed -e "/% === Generated code start ===/q" pkg.pl > pkg.pl.gen
+    sed -e "/% === Generated code start ===/q" bakage.pl > bakage.pl.gen
 
     for file in scripts/*.sh; do
         script_string=$(scryer-prolog -f -g "
@@ -19,12 +19,12 @@ codegen:
             halt.
         ")
         script_name=$(basename -s .sh "${file}")
-        printf '%s\n' "script_string(\"${script_name}\", ${script_string})." >> pkg.pl.gen
+        printf '%s\n' "script_string(\"${script_name}\", ${script_string})." >> bakage.pl.gen
     done
-    sed -n -e "/% === Generated code end ===/,$ {p}" pkg.pl >> pkg.pl.gen
+    sed -n -e "/% === Generated code end ===/,$ {p}" bakage.pl >> bakage.pl.gen
 
 codegen-check: codegen
-    diff pkg.pl pkg.pl.gen
+    diff bakage.pl bakage.pl.gen
 
 lint-sh:
     shellcheck -s sh -S warning ./**/*.sh
@@ -42,6 +42,6 @@ test-example:
     just example/test
 
 clean-codegen:
-    rm -f pkg.pl.gen
+    rm -f bakage.pl.gen
 
 clean: clean-codegen
