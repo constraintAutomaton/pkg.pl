@@ -35,8 +35,8 @@ ci: codegen-check lint-sh test
 test: 
     just build 
     just test-example
-    just test/build
-    just test/test
+    just tests/build
+    just tests/test
 
 test-example:
     just example/test
