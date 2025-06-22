@@ -5,7 +5,7 @@ for Scryer Prolog. This is still really rough (currently it has trivially
 exploitable arbitrary remote code execution) and is not intended for general
 use yet. If you want to contribute or have any ideas or questions feel free to
 get in touch and create issues, pull requests and
-[discussions](https://github.com/bakaq/pkg.pl/discussions).
+[discussions](https://github.com/bakaq/bakage/discussions).
 
 ## How to use
 
