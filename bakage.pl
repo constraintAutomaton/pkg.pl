@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Unlicense */
 
-:- module(pkg, [pkg_install/1]).
+:- module(bakage, [pkg_install/1]).
 
 :- use_module(library(os)).
 :- use_module(library(pio)).
