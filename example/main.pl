@@ -1,5 +1,5 @@
 % Loads the package loader
-:- use_module(pkg).
+:- use_module(bakage).
 
 % Loads a package. The argument should be an atom equal to the name of the
 % dependency package specified in the `name/1` field of its manifest.

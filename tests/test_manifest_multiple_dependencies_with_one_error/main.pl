@@ -1,4 +1,4 @@
-:- use_module(pkg).
+:- use_module(bakage).
 :- use_module('../util_packages/scryer_libs/packages/testing/testing.pl').
 :- use_module('../util_packages/assert.pl').
 :- use_module(library(ordsets)).
