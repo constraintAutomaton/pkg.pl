@@ -7,6 +7,7 @@ write_install_result() {
 }
 
 write_lock_result() {
+
     flock scryer_libs/temp/lock_resp.pl.lock -c \
         "printf 'result(\"%s\", %s).\n' \"$1\" \"$2\" >> scryer_libs/temp/lock_resp.pl"
 }
@@ -42,16 +43,13 @@ lock_dependency() {
 
     ERROR=""
 
-    cd "scryer_libs/packages/${dependency_name}" || {
-        write_lock_error "${dependency_name}" "Cannot cd into package directory"
-        return 1
-    }
+    cd "scryer_libs/packages/${dependency_name}"
 
     GIT_HASH=$(git rev-parse HEAD 2>&1) || ERROR="$ERROR git failure: $GIT_HASH"
     GIT_HASH=$(echo "$GIT_HASH" | head -n1)
 
     if [ -z "$ERROR" ]; then
-        write_lock_success "${dependency_name}" "lock(\"${GIT_HASH}\")"
+        write_lock_success "${dependency_name}" "${GIT_HASH}"
     else
         write_lock_error "${dependency_name}" "${ERROR}"
     fi
@@ -72,14 +70,14 @@ install_git_default() {
     )
 
     if [ -z "$error_output" ]; then
-        write_install_success "${dependency_name}"
         if [ "$lock" = "true" ]; then
             lock_dependency "${dependency_name}"
         else
             write_no_lock_operation "${dependency_name}"
         fi
+        write_install_success "${dependency_name}"
     else
-        write_install_error "${dependency_name}" "$error_output"
+        write_install_error "${dependency_name}"
     fi
 }
 
@@ -100,14 +98,14 @@ install_git_branch() {
     )
 
     if [ -z "$error_output" ]; then
-        write_install_success "${dependency_name}"
         if [ "$lock" = "true" ]; then
             lock_dependency "${dependency_name}"
         else
             write_no_lock_operation "${dependency_name}"
         fi
+        write_install_success "${dependency_name}"
     else
-        write_install_error "${dependency_name}" "$error_output"
+        write_install_error "${dependency_name}"
     fi
 }
 
@@ -128,14 +126,14 @@ install_git_tag() {
     )
 
     if [ -z "$error_output" ]; then
-        write_install_success "${dependency_name}"
         if [ "$lock" = "true" ]; then
             lock_dependency "${dependency_name}"
         else
             write_no_lock_operation "${dependency_name}"
         fi
+        write_install_success "${dependency_name}"
     else
-        write_install_error "${dependency_name}" "$error_output"
+        write_install_error "${dependency_name}"
     fi
 }
 
@@ -169,18 +167,19 @@ install_git_hash() {
         )
         combined_error="${fetch_error}; ${switch_error}"
 
+        
         if [ -z "$fetch_error" ] && [ -z "$switch_error" ]; then
-            write_install_success "${dependency_name}"
             if [ "$lock" = "true" ]; then
                 lock_dependency "${dependency_name}"
             else
                 write_no_lock_operation "${dependency_name}"
             fi
+            write_install_success "${dependency_name}"
         else
-            write_install_error "${dependency_name}" "${combined_error}"
+            write_install_error "${dependency_name}"
         fi
     else
-        write_install_error "${dependency_name}" "$error_output"
+        write_install_error "${dependency_name}"
     fi
 }
 
@@ -192,7 +191,6 @@ install_path() {
         error_output=$(ln -rsf "${dependency_path}" "scryer_libs/packages/${dependency_name}" 2>&1 1>/dev/null)
 
         if [ -z "$error_output" ]; then
-            write_install_success "${dependency_name}"
             write_no_lock_operation "${dependency_name}"
         else
             write_install_error "${dependency_name}" "$error_output"
@@ -265,3 +263,6 @@ for dependency in "$@"; do
 done
 
 wait
+
+rm -f scryer_libs/temp/install_resp.pl.lock
+rm -f scryer_libs/temp/lock_resp.pl.lock
