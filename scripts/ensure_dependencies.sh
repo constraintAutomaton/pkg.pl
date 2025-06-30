@@ -11,10 +11,6 @@ write_lock_result() {
         "printf 'result(\"%s\", %s).\n' \"$1\" \"$2\" >> scryer_libs/temp/lock_resp.pl"
 }
 
-write_no_lock_operation() {
-    write_lock_result "$1" "nothing"
-}
-
 write_install_success() {
     write_install_result "$1" "success"
 }
@@ -42,16 +38,11 @@ lock_dependency() {
 
     ERROR=""
 
-    cd "scryer_libs/packages/${dependency_name}" || {
-        write_lock_error "${dependency_name}" "Cannot cd into package directory"
-        return 1
-    }
-
-    GIT_HASH=$(git rev-parse HEAD 2>&1) || ERROR="$ERROR git failure: $GIT_HASH"
+    GIT_HASH=$(cd "scryer_libs/packages/${dependency_name}" && git rev-parse HEAD 2>&1) || ERROR="git failure: $GIT_HASH"
     GIT_HASH=$(echo "$GIT_HASH" | head -n1)
 
     if [ -z "$ERROR" ]; then
-        write_lock_success "${dependency_name}" "lock(\"${GIT_HASH}\")"
+        write_lock_success "${dependency_name}" "lock(\\\"${GIT_HASH}\\\")"
     else
         write_lock_error "${dependency_name}" "${ERROR}"
     fi
@@ -75,8 +66,6 @@ install_git_default() {
         write_install_success "${dependency_name}"
         if [ "$lock" = "true" ]; then
             lock_dependency "${dependency_name}"
-        else
-            write_no_lock_operation "${dependency_name}"
         fi
     else
         write_install_error "${dependency_name}" "$error_output"
@@ -103,8 +92,6 @@ install_git_branch() {
         write_install_success "${dependency_name}"
         if [ "$lock" = "true" ]; then
             lock_dependency "${dependency_name}"
-        else
-            write_no_lock_operation "${dependency_name}"
         fi
     else
         write_install_error "${dependency_name}" "$error_output"
@@ -131,8 +118,6 @@ install_git_tag() {
         write_install_success "${dependency_name}"
         if [ "$lock" = "true" ]; then
             lock_dependency "${dependency_name}"
-        else
-            write_no_lock_operation "${dependency_name}"
         fi
     else
         write_install_error "${dependency_name}" "$error_output"
@@ -173,8 +158,6 @@ install_git_hash() {
             write_install_success "${dependency_name}"
             if [ "$lock" = "true" ]; then
                 lock_dependency "${dependency_name}"
-            else
-                write_no_lock_operation "${dependency_name}"
             fi
         else
             write_install_error "${dependency_name}" "${combined_error}"
@@ -193,7 +176,6 @@ install_path() {
 
         if [ -z "$error_output" ]; then
             write_install_success "${dependency_name}"
-            write_no_lock_operation "${dependency_name}"
         else
             write_install_error "${dependency_name}" "$error_output"
         fi
@@ -265,3 +247,6 @@ for dependency in "$@"; do
 done
 
 wait
+
+rm -f scryer_libs/temp/install_resp.pl.lock
+rm -f scryer_libs/temp/lock_resp.pl.lock
