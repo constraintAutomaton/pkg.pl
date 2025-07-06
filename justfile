@@ -1,10 +1,13 @@
+# Shows all the tasks
 default:
     @just --list
 
+# Builds the bakage.pl file
 build: codegen
     mv bakage.pl.gen bakage.pl
     chmod +x bakage.pl
 
+[private]
 codegen:
     #!/bin/sh
     set -eu
@@ -24,25 +27,31 @@ codegen:
     done
     sed -n -e "/% === Generated code end ===/,$ {p}" bakage.pl >> bakage.pl.gen
 
+# Checks if the bakage.pl file is up to date
 codegen-check: codegen
     diff bakage.pl bakage.pl.gen
+    rm -f bakage.pl.gen
 
+# Run all lints
+lint: lint-sh
+
+[private]
 lint-sh:
     shellcheck -s sh -S warning ./**/*.sh
     
-# All the checks made in CI
-ci: codegen-check lint-sh test
+# Runs all the checks made in CI
+ci:
+    just codegen-check
+    just lint-sh
+    just test
 
-test: 
-    just build 
-    just test-example
-    just tests/build
+# Runs all the tests
+test: build
+    just example/test
     just tests/test
 
-test-example:
-    just example/test
-
-clean-codegen:
+# Cleans everything that is generated during builds or tests
+clean:
+    just example/clean
+    just tests/clean
     rm -f bakage.pl.gen
-
-clean: clean-codegen

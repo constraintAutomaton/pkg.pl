@@ -1,0 +1,8 @@
+build:
+    scryer-prolog -f bakage.pl -g "catch(pkg_install(_), _, halt(1)), halt"
+
+clean-build: clean
+    just build
+
+clean:
+    rm -rf scryer_libs
