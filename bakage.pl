@@ -153,9 +153,6 @@ do_task(help(CommandPath), _) :-
 do_task(install, _) :-
     pkg_install(_).
 
-help_text(root) --> "".
-help_text(install) --> "".
-
 % Uses global color configuration
 ansi(Color) -->
     {
@@ -196,6 +193,129 @@ color_text(CliColor, Color, Text) -->
     ansi(CliColor, Color),
     Text1,
     ansi(CliColor, reset).
+
+help_text(CommandPath) -->
+    {
+        help_info(CommandPath, Description, Usage, Options, Commands)
+    },
+    help_description(Description),
+    help_usage(Usage),
+    help_option_table("Options", Options),
+    help_option_table("Commands", Commands).
+
+help_info(
+    root,
+    "Bakage: an experimental package manager for Prolog",
+    "bakage [OPTIONS] [COMMAND]",
+    [
+        flag("color", none, "When to use color. Valid options: auto, always, never"),
+        flag("help", "h", "Print help")
+    ],
+    [
+        %command("init", "Create a new project in the current directory"),
+        command("install", "Installs the dependencies of the current package")
+        %command("new", "Create a new project in a new directory"),
+        %command("run", "Runs the current package")
+    ]
+).
+help_info(
+    install,
+    "Install package dependencies",
+    "bakage install [OPTIONS]",
+    [
+        flag("color", none, "When to use color. Valid options: auto, always, never"),
+        flag("help", "h", "Print help")
+    ],
+    []
+).
+
+options_width(Options, OptionWidth) :-
+    options_width(Options, 0, OptionWidth0),
+    OptionWidth is 2 + OptionWidth0 + 2.
+
+options_width([], OptionWidth, OptionWidth).
+options_width([Option|Options], OptionWidth0, OptionWidth) :-
+    option_width(Option, Width),
+    OptionWidth1 is max(OptionWidth0, Width),
+    options_width(Options, OptionWidth1, OptionWidth).
+
+option_width(flag(Long, _, _), Width) :-
+    length(Long, Width0),
+    Width is 4 + Width0.
+option_width(command(Name, _), Width) :-
+    length(Name, Width).
+
+with_tail_newline([]) --> "\n".
+with_tail_newline([H|T]) --> 
+    {
+        Text = [H|T],
+        phrase((..., [Last]), Text),
+        if_(
+            Last = '\n',
+            WithNewline = Text,
+            phrase((Text, "\n"), WithNewline)
+        )
+    },
+    WithNewline.
+
+help_description(Description) -->
+    { phrase(Description, Description1) },
+    with_tail_newline(Description1).
+
+help_usage(Usage) -->
+    { phrase(Usage, Usage1) },
+    "\n",
+    color_text(help_header, "Usage:"),
+    " ",
+    color_text(help_option, Usage1),
+    "\n".
+
+help_option_table(_, []) --> "".
+help_option_table(Name, Options) -->
+    { Options = [_|_] },
+    "\n",
+    color_text(help_header, (Name, ":")), "\n",
+    { options_width(Options, OptionWidth) },
+    help_option_table_(Options, OptionWidth).
+
+help_option_table_([], _) --> "".
+help_option_table_([Option|Options], OptionWidth) -->
+    help_option_table_line(Option, OptionWidth),
+    help_option_table_(Options, OptionWidth).
+
+n_spaces(N) -->
+    {
+        length(Spaces, N),
+        append(Spaces, _, [' '|Spaces])
+    },
+    Spaces.
+
+help_option_table_line(command(Name, Description), OptionWidth) -->
+    { 
+        length(Name, NameLen),
+        PaddingLen is OptionWidth - NameLen - 2
+    },
+    n_spaces(2), color_text(help_option, Name), n_spaces(PaddingLen),
+    with_tail_newline(Description).
+
+help_option_table_line(flag(Long, Short, Description), OptionWidth) -->
+    { 
+        length(Long, LongLen),
+        PaddingLen is OptionWidth - LongLen - 6,
+        if_(
+            Short = none,
+            phrase(n_spaces(4), ShortDesc),
+            phrase(
+                (color_text(help_option, ("-", Short)), ", "),
+                ShortDesc
+            )
+        )
+    },
+    n_spaces(2),
+    ShortDesc,
+    color_text(help_option, ("--", Long)),
+    n_spaces(PaddingLen),
+    with_tail_newline(Description).
 
 % Cleanly pass arguments to a script through environment variables
 run_script_with_args(ScriptName, Args, Success) :-
