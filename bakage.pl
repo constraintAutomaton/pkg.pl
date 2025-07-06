@@ -156,6 +156,47 @@ do_task(install, _) :-
 help_text(root) --> "".
 help_text(install) --> "".
 
+% Uses global color configuration
+ansi(Color) -->
+    {
+        cli_color(CliColor),
+        phrase(ansi(CliColor, Color), Code)
+    },
+    Code.
+
+ansi(off, _) --> "".
+ansi(on, Color) --> ansi_(Color).
+
+% Raw colors
+ansi_(reset) --> "\x1b\[0m".
+ansi_(bold) --> "\x1b\[1m".
+ansi_(red) --> "\x1b\[31m".
+ansi_(green) --> "\x1b\[32m".
+ansi_(yellow) --> "\x1b\[33m".
+ansi_(blue) --> "\x1b\[34m".
+ansi_(magenta) --> "\x1b\[35m".
+ansi_(cyan) --> "\x1b\[36m".
+ansi_(white) --> "\x1b\[37m".
+
+% Color aliases
+ansi_(help_header) --> ansi_(yellow), ansi_(bold).
+ansi_(help_option) --> ansi_(green), ansi_(bold).
+
+% Uses global color configuration
+color_text(Color, Text) -->
+    {
+        cli_color(CliColor),
+        phrase(color_text(CliColor, Color, Text), ColorText)
+    },
+    ColorText.
+
+% Accepts arbitrary grammar rule bodies
+color_text(CliColor, Color, Text) -->
+    { phrase(Text, Text1) },
+    ansi(CliColor, Color),
+    Text1,
+    ansi(CliColor, reset).
+
 % Cleanly pass arguments to a script through environment variables
 run_script_with_args(ScriptName, Args, Success) :-
     maplist(define_script_arg, Args),
