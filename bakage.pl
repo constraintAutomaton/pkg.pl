@@ -14,17 +14,40 @@ exit 1
 
 :- module(bakage, [pkg_install/1]).
 
-:- use_module(library(os)).
-:- use_module(library(pio)).
-:- use_module(library(files)).
-:- use_module(library(lists)).
-:- use_module(library(charsio)).
-:- use_module(library(format)).
-:- use_module(library(dcgs)).
-:- use_module(library(dif)).
-:- use_module(library(reif)).
-:- use_module(library(iso_ext)).
-:- use_module(library(debug)).
+% ==========================
+% === Compatibility zone ===
+% ==========================
+
+% Everything that is implementation specific, implementation defined, or otherwise not guaranteed
+% by the base 13211-1 ISO standard with corrigenda should be encapsulated here so that we only
+% have to look in one place when porting or making this more portable.
+
+% Hard to shim
+
+:- use_module(library(os), [argv/1, setenv/2, shell/1, unsetenv/1, getenv/2]).
+:- use_module(library(files), [
+    directory_exists/1, make_directory_path/1, directory_files/2, file_exists/1,
+    delete_file/1, delete_directory/1
+]).
+:- use_module(library(dcgs), [phrase/2, phrase/3, ... //0]). % 13211-3
+:- use_module(library(charsio), [write_term_to_chars/3]).
+:- use_module(library(iso_ext), [setup_call_cleanup/3, call_cleanup/2]).
+
+% Easy to shim
+:- use_module(library(lists), [
+    length/2, maplist/1, member/2, append/2, maplist/2, append/3, memberchk/2
+]).
+:- use_module(library(pio), [phrase_to_file/2, phrase_to_stream/2]).
+:- use_module(library(dif), [dif/2]). % With dif_si/2, though that may lose some functionality
+:- use_module(library(reif), [if_/3, (;)/3, memberd_t/3, (=)/3]).
+:- use_module(library(format), [portray_clause/1, portray_clause_//1]).
+
+user:term_expansion((:- use_module(pkg(Package))), (:- use_module(PackageMainFile))) :-
+    package_main_file(Package, PackageMainFile).
+
+% =================================
+% === End of compatibility zone ===
+% =================================
 
 run :- 
     (
@@ -457,8 +480,7 @@ parse_manifest(Filename, Manifest) :-
         close(Stream)
     ).
 
-% pkg depedencies associated with the corresponding physical module
-user:term_expansion((:- use_module(pkg(Package))), (:- use_module(PackageMainFile))) :-
+package_main_file(Package, PackageMainFile) :-
     atom_chars(Package, PackageChars),
     scryer_path(ScryerPath),
     append([ScryerPath, "/packages/", PackageChars], PackagePath),
