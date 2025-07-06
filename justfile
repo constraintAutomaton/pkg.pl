@@ -3,6 +3,7 @@ default:
 
 build: codegen
     mv bakage.pl.gen bakage.pl
+    chmod +x bakage.pl
 
 codegen:
     #!/bin/sh

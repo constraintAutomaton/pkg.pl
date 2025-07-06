@@ -1,3 +1,15 @@
+/*bin/sh -c true
+
+set -eu
+
+type scryer-prolog > /dev/null 2> /dev/null \
+    && exec scryer-prolog -f -g "bakage:run" "$0" -- "$@"
+
+echo "No known supported Prolog implementation available in PATH."
+echo "Try to install Scryer Prolog."
+exit 1
+#*/
+
 /* SPDX-License-Identifier: Unlicense */
 
 :- module(bakage, [pkg_install/1]).
@@ -13,6 +25,36 @@
 :- use_module(library(reif)).
 :- use_module(library(iso_ext)).
 :- use_module(library(debug)).
+
+run :- 
+    (
+        catch(
+            main,
+            Error,
+            (
+                portray_clause(Error),
+                halt(1)
+            )
+        ),
+        halt
+    ;   phrase_to_stream("main predicate failed", user_output),
+        halt(1)
+    ).
+
+main :-
+    parse_args_and_env(GlobalFlags, Task),
+    set_global_state(GlobalFlags),
+    do_task(Task, GlobalFlags).
+
+parse_args_and_env([], help(root)).
+
+set_global_state(_) :-
+    assertz(cli_color(on)).
+
+do_task(help(CommandPath), _) :-
+    phrase_to_stream(help_text(CommandPath), user_output).
+
+help_text(root) --> "".
 
 % Cleanly pass arguments to a script through environment variables
 run_script_with_args(ScriptName, Args, Success) :-
