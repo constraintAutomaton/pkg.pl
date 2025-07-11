@@ -1,3 +1,15 @@
+/*bin/sh -c true
+
+set -eu
+
+type scryer-prolog > /dev/null 2> /dev/null \
+    && exec scryer-prolog -f -g "bakage:run" "$0" -- "$@"
+
+echo "No known supported Prolog implementation available in PATH."
+echo "Try to install Scryer Prolog."
+exit 1
+#*/
+
 /* SPDX-License-Identifier: Unlicense */
 
 :- module(bakage, [pkg_install/1]).
@@ -13,6 +25,136 @@
 :- use_module(library(reif)).
 :- use_module(library(iso_ext)).
 :- use_module(library(debug)).
+
+run :- 
+    (
+        catch(
+            main,
+            Error,
+            (
+                portray_clause(Error),
+                halt(1)
+            )
+        ),
+        halt
+    ;   phrase_to_stream("main predicate failed", user_output),
+        halt(1)
+    ).
+
+main :-
+    collect_relevant_env_vars(EnvVars),
+    argv(Args),
+    parse_args(Args, ParsedArgs),
+    resolve_flags_and_task(ParsedArgs, EnvVars, GlobalFlags, Task),
+    set_global_state(GlobalFlags),
+    do_task(Task, GlobalFlags).
+
+parse_args(Args, ParsedArgs) :-
+    phrase(chunked_args(ChunkedArgs), Args),
+    parse_chunked_args(ChunkedArgs, parsed_args([], []), ParsedArgs).
+
+parse_chunked_args([], ParsedArgs, ParsedArgs).
+parse_chunked_args([CA|CAs], ParsedArgs0, ParsedArgs) :-
+    parse_chunked_arg(CA, ParsedArgs0, ParsedArgs1),
+    parse_chunked_args(CAs, ParsedArgs1, ParsedArgs).
+
+parse_chunked_arg(flag(Flag), parsed_args(Command, Flags0), parsed_args(Command, Flags)) :-
+    options_upsert(Flag, Flags0, Flags).
+
+parse_chunked_arg(command(Cmd), parsed_args(Command0, Flags), parsed_args(Command, Flags)) :-
+    append(Command0, [Cmd], Command).
+
+options_upsert(Option, Options0, Options) :-
+    functor(Option, Functor, Arity),
+    functor(Pattern, Functor, Arity),
+    (   append([Before, [Pattern], After], Options0) ->
+        append([Before, [Option], After], Options)
+    ;   append(Options0, [Option], Options)
+    ).
+
+chunked_args([]) --> [].
+chunked_args([CA|CAs]) --> chunked_arg(CA), chunked_args(CAs).
+
+chunked_arg(flag(help)) --> ( ["-h"] ; ["--help"] ).
+chunked_arg(flag(color(ColorPolicy))) -->
+    ["--color"],
+    [ColorPolicy0],
+    { phrase(color_policy(ColorPolicy), ColorPolicy0) }.
+chunked_arg(flag(color(ColorPolicy))) -->
+    [ColorPolicy0],
+    { phrase(("--color=", color_policy(ColorPolicy)), ColorPolicy0) }.
+chunked_arg(command(install)) --> ["install"].
+
+color_policy(auto) --> "auto".
+color_policy(always) --> "always".
+color_policy(never) --> "never".
+
+collect_relevant_env_vars(EnvVars) :-
+    (   getenv("NO_COLOR", NC) ->
+        NoColor = NC
+    ;   NoColor = unset
+    ),
+    (   getenv("CLICOLOR_FORCE", CCF) ->
+        CliColorForce = CCF
+    ;   CliColorForce = unset
+    ),
+    EnvVars = [
+        no_color(NoColor),
+        cli_color_force(CliColorForce)
+    ].
+
+resolve_flags_and_task(ParsedArgs, EnvVars, GlobalFlags, Task) :-
+    ParsedArgs = parsed_args(Command, Flags),
+    resolve_cli_color(EnvVars, Flags, CliColor),
+    GlobalFlags = [
+        cli_color(CliColor)
+    ],
+    resolve_task(Command, Flags, Task).
+
+resolve_cli_color(EnvVars, Flags, CliColor) :-
+    member(no_color(NoColor), EnvVars),
+    member(cli_color_force(CliColorForce), EnvVars),
+    (   member(color(ColorPolicy), Flags) ->
+        true
+    ;   ColorPolicy = auto
+    ),
+    CliColor0 = on,
+    (   NoColor \= unset, NoColor \= "" ->
+        CliColor1 = off
+    ;   CliColor1 = CliColor0
+    ),
+    (   CliColorForce \= unset, CliColorForce \= "" ->
+        CliColor2 = on
+    ;   CliColor2 = CliColor1
+    ),
+    (   ColorPolicy == always ->
+        CliColor = on
+    ;   ColorPolicy == never ->
+        CliColor = off
+    ;   CliColor = CliColor2
+    ).
+
+resolve_task([], _, help(root)).
+resolve_task([Command|Subcommands], Flags, Task) :-
+    resolve_command_task(Command, Subcommands, Flags, Task).
+
+resolve_command_task(install, [], Flags, Task) :-
+    (   member(help, Flags) ->
+        Task = help(install)
+    ;   Task = install
+    ).
+
+set_global_state(_) :-
+    assertz(cli_color(on)).
+
+do_task(help(CommandPath), _) :-
+    phrase_to_stream(help_text(CommandPath), user_output).
+
+do_task(install, _) :-
+    pkg_install(_).
+
+help_text(root) --> "".
+help_text(install) --> "".
 
 % Cleanly pass arguments to a script through environment variables
 run_script_with_args(ScriptName, Args, Success) :-
