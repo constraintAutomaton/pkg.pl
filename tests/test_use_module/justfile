@@ -6,7 +6,7 @@ test:
 
     rm -rf scryer_libs && rm -f manifest-lock.pl
 
-    scryer-prolog -f bakage.pl -g "catch(pkg_install(_), _, halt(1)),halt"
+    ./bakage.pl install
 
     scryer-prolog main.pl -g "catch(main, _, halt(1)) ."
 

@@ -1,5 +1,5 @@
 build:
-    scryer-prolog -f bakage.pl -g "catch(pkg_install(_), _, halt(1)), halt"
+    ./bakage.pl install
 
 clean-build: clean
     just build

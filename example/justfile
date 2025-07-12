@@ -5,7 +5,7 @@ clean:
     rm --recursive --force scryer_libs
 
 install:
-    scryer-prolog -f bakage.pl -g "catch(pkg_install(_), _, halt(1)),halt"
+    ./bakage.pl install
 
 # This is so that we don't depend on the ordering of dependencies,
 # which doesn't seem to be documented anywhere.
