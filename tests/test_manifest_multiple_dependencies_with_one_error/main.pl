@@ -1,6 +1,6 @@
 :- use_module(bakage).
-:- use_module('../util_packages/scryer_libs/packages/testing/testing.pl').
-:- use_module('../util_packages/assert.pl').
+:- use_module('../utils/testing.pl').
+:- use_module('../utils/assert.pl').
 :- use_module(library(ordsets)).
 :- use_module(library(pio)).
 :- use_module(library(format)).

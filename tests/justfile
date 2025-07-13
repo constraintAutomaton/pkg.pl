@@ -1,10 +1,3 @@
-default:
-    @just --list
-
-build:
-    rm -rf util_packages/scryer_libs
-    cd util_packages && scryer-prolog -f bakage.pl -g "catch(pkg_install(_), _, halt(1)), halt"
-
 test:
     #!/bin/sh
     set -eu
@@ -21,4 +14,3 @@ test:
     done
 
     exit "$exit_code"
-    

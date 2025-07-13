@@ -32,7 +32,7 @@ dependencies([
 ```
 
 Copy the `bakage.pl` file into your project. It is both the dependency manager and
-the package loader. Use `scryer-prolog bakage.pl -g "pkg_install(X),halt."` to download
+the package loader. Use `./bakage.pl install"` to download
 the dependencies to a `scryer_libs` directory (it doesn't handle transitive
 dependencies yet). You can then import packages in your code as follows:
 

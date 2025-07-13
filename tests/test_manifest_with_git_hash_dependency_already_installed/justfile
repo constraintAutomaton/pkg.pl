@@ -2,7 +2,7 @@ test:
     #!/bin/sh
     set -eu
 
-    . ../util_packages/report_test.sh
+    . ../utils/report_test.sh
 
     printf "%s\n" "Testing the installation of a git hash dependency already installed"
 
