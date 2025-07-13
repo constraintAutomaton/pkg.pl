@@ -2,7 +2,7 @@ test:
     #!/bin/sh
     set -eu
     
-    . ../util_packages/report_test.sh
+    . ../utils/report_test.sh
 
     printf "%s\n" "Testing installation of multiple dependencies where all the dependencies have errors"
 

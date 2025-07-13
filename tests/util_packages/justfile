@@ -1,8 +1,0 @@
-build:
-    ./bakage.pl install
-
-clean-build: clean
-    just build
-
-clean:
-    rm -rf scryer_libs

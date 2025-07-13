@@ -1,4 +1,4 @@
-test: build
+test:
     #!/bin/sh
     set -eu
 
@@ -14,9 +14,3 @@ test: build
     done
 
     exit "$exit_code"
-
-build:
-    just util_packages/clean-build
-
-clean:
-    just util_packages/clean
