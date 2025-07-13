@@ -144,8 +144,11 @@ resolve_command_task(install, [], Flags, Task) :-
     ;   Task = install
     ).
 
-set_global_state(_) :-
-    assertz(cli_color(on)).
+set_global_state(GlobalFlags) :-
+    (   member(cli_color(CliColor), GlobalFlags) ->
+        assertz(cli_color(CliColor))
+    ;   true
+    ).
 
 do_task(help(CommandPath), _) :-
     phrase_to_stream(help_text(CommandPath), user_output).
@@ -263,11 +266,10 @@ help_description(Description) -->
     with_tail_newline(Description1).
 
 help_usage(Usage) -->
-    { phrase(Usage, Usage1) },
     "\n",
     color_text(help_header, "Usage:"),
     " ",
-    color_text(help_option, Usage1),
+    color_text(help_option, Usage),
     "\n".
 
 help_option_table(_, []) --> "".
