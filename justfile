@@ -53,4 +53,5 @@ test: build
 # Cleans everything that is generated during builds or tests
 clean:
     just example/clean
+    just tests/clean
     rm -f bakage.pl.gen

@@ -1,4 +1,4 @@
-test: integration-tests
+test: snapshot-tests integration-tests
 
 integration-tests:
     #!/bin/sh
@@ -16,3 +16,9 @@ integration-tests:
     done
 
     exit "$exit_code"
+
+snapshot-tests:
+    just snapshot/test
+
+clean:
+    just snapshot/clean
