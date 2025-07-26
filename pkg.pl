@@ -214,8 +214,9 @@ pkg_install(Report) :-
                         locked_dependencies(Locked_Dependencies),
                         logical_plan(Plan, Deps, Installed_Packages, Locked_Dependencies),
                         installation_execution(Plan, Installation_Report),
-                        lock_dependencies_result(Plan),
-                        append(Validation_Report, Installation_Report, Report)
+                        lock_dependencies_result(Plan, M, Lock_Report),
+                        materialize_lock_file(M),
+                        append([Validation_Report, Installation_Report, Lock_Report], Report)
                         ),
                         delete_directory("scryer_libs/temp")
                     ),
@@ -226,10 +227,30 @@ pkg_install(Report) :-
             );  Report = []
         ).
 
-lock_dependencies_result(Plan) :-
-    parse_lock_report(Result),
-    phrase(lock_report(Plan, Result_Report), Results).
-    
+materialize_lock_file(LockTerms) :-
+    open('manifest-lock.pl', write, Stream),
+    write(Stream, '% WARNING: This file is auto-generated. Do NOT modify it manually.\n\n'),
+    write_term(Stream, LockTerms, [double_quotes(true)]),
+    write(Stream, '.\n'),
+    close(Stream).
+
+lock_dependencies_result(Plan, lock_dependencies(Ls), Lock_Report) :-
+    parse_lock_report(Result_Report),
+    phrase(lock_report(Plan, Result_Report), Results),
+    phrase(lock_dependency_list(Results), Ls),
+    phrase(lock_dependency_report(Results), Lock_Report).
+
+lock_dependency_list([]) --> [].
+lock_dependency_list([lock(_)-error(_)| Rs]) --> lock_dependency_list(Rs).
+lock_dependency_list([lock(dependency(Name, git(X)))-lock(Git_Hash)|Rs]) --> [dependency(Name, git(X, hash(Git_Hash)))], lock_dependency_list(Rs).
+lock_dependency_list([lock(dependency(Name, git(X, branch(_))))-lock(Git_Hash)|Rs]) --> [dependency(Name, git(X, hash(Git_Hash)))], lock_dependency_list(Rs).
+lock_dependency_list([lock(dependency(Name, git(X, tag(_))))-lock(Git_Hash)|Rs]) --> [dependency(Name, git(X, hash(Git_Hash)))], lock_dependency_list(Rs).
+lock_dependency_list([lock(dependency(Name, git(X, hash(_))))-lock(Git_Hash)|Rs]) --> [dependency(Name, git(X, hash(Git_Hash)))], lock_dependency_list(Rs).
+
+lock_dependency_report([]) --> [].
+lock_dependency_report([lock(X)-error(E)| Rs]) --> [lock_dependency(X)-error(E)], lock_dependency_report(Rs).
+lock_dependency_report([lock(X)-lock(_)| Rs]) --> [lock_dependency(X)-success], lock_dependency_report(Rs).
+
 % A logical plan to install the dependencies
 logical_plan(Plan, Ds, Installed_Packages, Locked_Dependencies) :-
     phrase(fetch_plan(Ds, Installed_Packages, Locked_Dependencies), Plan).
@@ -244,14 +265,17 @@ fetch_plan([D|Ds], Installed_Packages, Locked_Dependencies) -->
 % A step of a logical plan to fetch the dependencies
 fetch_step(dependency(Name, DependencyTerm), Step, Installed_Packages, Locked_Dependencies) :-
     if_(memberd_t(Name, Installed_Packages),
-        Step = do_nothing(dependency(Name, DependencyTerm), do_nothing),
+        (Step = do_nothing(dependency(Name, DependencyTerm), do_nothing)),
         (
             if_(memberd_t(dependency(Name, X), Locked_Dependencies),
-                Step = install_locked_dependency(dependency(Name, X), do_nothing),
-                Step = install_dependency(dependency(Name, DependencyTerm), lock)
+                (Step = install_locked_dependency(dependency(Name, X), do_nothing)),
+                install_dependency_lock(dependency(Name, DependencyTerm), Step)
             )
         )
     ).
+
+install_dependency_lock(dependency(Name, path(Path)), install_dependency(dependency(Name, path(Path)), do_nothing)):-!.
+install_dependency_lock(dependency(Name, DependencyTerm), install_dependency(dependency(Name, DependencyTerm), lock)).
 
 % Execute the physical installation of the dependencies
 installation_execution(Plan, Results):-
@@ -275,7 +299,7 @@ parse_report(Result_List, File) :-
         (
             close(Stream),
             ( file_exists(File)->
-                delete_file(File)
+                * delete_file(File)
             ; true
             )
         )
@@ -307,6 +331,10 @@ lock_report([], _) --> [].
 lock_report([install_dependency(D, lock)|Ps], Result_Report) -->
     { report_lock_step(install_dependency(D, lock), Result_Report, R) },
     [R],
+    lock_report(Ps, Result_Report).
+
+lock_report([install_dependency(_, do_nothing)|Ps], Result_Report) -->
+    [],
     lock_report(Ps, Result_Report).
 
 lock_report([install_locked_dependency(_, do_nothing)|Ps], Result_Report) -->
