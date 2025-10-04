@@ -1,0 +1,11 @@
+test:
+    ./snapshot.sh test
+
+dump:
+    ./snapshot.sh dump
+
+snapshot:
+    ./snapshot.sh snapshot
+
+clean:
+    rm -rf dump
