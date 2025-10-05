@@ -11,7 +11,8 @@ test("the package report is valid", (
         pkg_install(X),
         Expected = [
             validate_dependency(dependency("test", git("https://github.com/constraintAutomaton/test-prolog-package-manager.git")))-success,
-            install_dependency(dependency("test", git("https://github.com/constraintAutomaton/test-prolog-package-manager.git")))-success
+            install_dependency(dependency("test", git("https://github.com/constraintAutomaton/test-prolog-package-manager.git")))-success,
+            lock_dependency(dependency("test", git("https://github.com/constraintAutomaton/test-prolog-package-manager.git")))-success
         ],
         test_eq(X, Expected)
     )
