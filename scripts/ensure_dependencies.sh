@@ -27,6 +27,7 @@ write_install_error() {
     escaped_error=$(printf '%s' "$escaped_error" | tr '\r\n' '\\n')
     escaped_error=$(printf '%s' "$escaped_error" | sed 's/ / /g')
     write_result "$1" "error(\\\"$escaped_error\\\")"
+    write_lock_error "$1" "installation failed"
 }
 
 write_lock_error() {
