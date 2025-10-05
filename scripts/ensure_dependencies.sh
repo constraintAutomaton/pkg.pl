@@ -1,7 +1,10 @@
 #!/bin/sh
 set -u
 
-write_install_result() {
+# Fail instead of prompting for password in git commands.
+export GIT_TERMINAL_PROMPT=0
+
+write_result() {
     flock scryer_libs/temp/install_resp.pl.lock -c \
         "printf 'result(\"%s\", %s).\n' \"$1\" \"$2\" >> scryer_libs/temp/install_resp.pl"
 }
@@ -12,7 +15,7 @@ write_lock_result() {
 }
 
 write_install_success() {
-    write_install_result "$1" "success"
+    write_result "$1" "success"
 }
 
 write_lock_success() {
@@ -23,7 +26,7 @@ write_install_error() {
     escaped_error=$(printf '%s' "$2" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g')
     escaped_error=$(printf '%s' "$escaped_error" | tr '\r\n' '\\n')
     escaped_error=$(printf '%s' "$escaped_error" | sed 's/ / /g')
-    write_install_result "$1" "error(\\\"$escaped_error\\\")"
+    write_result "$1" "error(\\\"$escaped_error\\\")"
 }
 
 write_lock_error() {

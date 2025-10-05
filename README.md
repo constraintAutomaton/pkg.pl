@@ -1,11 +1,11 @@
-# pkg.pl: An experimental package manager for Scryer Prolog
+# Bakage: An experimental package manager for Scryer Prolog
 
 This project is intended to be a testing ground for how to do a package manager
 for Scryer Prolog. This is still really rough (currently it has trivially
 exploitable arbitrary remote code execution) and is not intended for general
 use yet. If you want to contribute or have any ideas or questions feel free to
 get in touch and create issues, pull requests and
-[discussions](https://github.com/bakaq/pkg.pl/discussions).
+[discussions](https://github.com/bakaq/bakage/discussions).
 
 ## How to use
 
@@ -31,14 +31,14 @@ dependencies([
 
 ```
 
-Copy the `pkg.pl` file into your project. It is both the dependency manager and
-the package loader. Use `scryer-prolog pkg.pl -g "pkg_install(X),halt."` to download
+Copy the `bakage.pl` file into your project. It is both the dependency manager and
+the package loader. Use `./bakage.pl install"` to download
 the dependencies to a `scryer_libs` directory (it doesn't handle transitive
 dependencies yet). You can then import packages in your code as follows:
 
 ```prolog
 % Loads the package loader
-:- use_module(pkg).
+:- use_module(bakage).
 
 % Loads a package. The argument should be an atom equal to the name of the
 % dependency package specified in the `name/1` field of its manifest.

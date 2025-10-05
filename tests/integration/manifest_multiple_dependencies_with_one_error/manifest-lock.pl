@@ -1,0 +1,3 @@
+% WARNING: This file is auto-generated. Do NOT modify it manually.
+
+lock_dependencies([dependency("test",git("https://github.com/constraintAutomaton/test-prolog-package-manager.git",hash("bb3e0d96153df606ef8030b2a95d5d9024793e79"))),dependency("test_branch",git("https://github.com/constraintAutomaton/test-prolog-package-manager.git",hash("cac8452114d5cd8aa75c6acbc6180a7d60bd24a6"))),dependency("test_tag",git("https://github.com/constraintAutomaton/test-prolog-package-manager.git",hash("41941e2af5b265d2cc98f04a05a7e652bd370d60"))),dependency("test_hash",git("https://github.com/constraintAutomaton/test-prolog-package-manager.git",hash("d19fefc1d7907f6675e181601bb9b8b94561b441")))]).

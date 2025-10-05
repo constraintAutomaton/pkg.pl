@@ -1,0 +1,24 @@
+test: snapshot-tests integration-tests
+
+integration-tests:
+    #!/bin/sh
+    set -eu
+
+    exit_code=0
+
+    for dir in integration/*; do
+        if (cd "$dir" && just test); then
+            printf "%s\n" "Test in $dir passed"
+        else
+            printf "%s\n" "Test in $dir FAILED"
+            exit_code=1
+        fi
+    done
+
+    exit "$exit_code"
+
+snapshot-tests:
+    just snapshot/test
+
+clean:
+    just snapshot/clean

@@ -1,14 +1,18 @@
+# Shows all the tasks
 default:
     @just --list
 
+# Builds the bakage.pl file
 build: codegen
-    mv pkg.pl.gen pkg.pl
+    mv bakage.pl.gen bakage.pl
+    chmod +x bakage.pl
 
+[private]
 codegen:
     #!/bin/sh
     set -eu
 
-    sed -e "/% === Generated code start ===/q" pkg.pl > pkg.pl.gen
+    sed -e "/% === Generated code start ===/q" bakage.pl > bakage.pl.gen
 
     for file in scripts/*.sh; do
         script_string=$(scryer-prolog -f -g "
@@ -19,29 +23,35 @@ codegen:
             halt.
         ")
         script_name=$(basename -s .sh "${file}")
-        printf '%s\n' "script_string(\"${script_name}\", ${script_string})." >> pkg.pl.gen
+        printf '%s\n' "script_string(\"${script_name}\", ${script_string})." >> bakage.pl.gen
     done
-    sed -n -e "/% === Generated code end ===/,$ {p}" pkg.pl >> pkg.pl.gen
+    sed -n -e "/% === Generated code end ===/,$ {p}" bakage.pl >> bakage.pl.gen
 
+# Checks if the bakage.pl file is up to date
 codegen-check: codegen
-    diff pkg.pl pkg.pl.gen
+    diff bakage.pl bakage.pl.gen
+    rm -f bakage.pl.gen
 
+# Run all lints
+lint: lint-sh
+
+[private]
 lint-sh:
     shellcheck -s sh -S warning ./**/*.sh
     
-# All the checks made in CI
-ci: codegen-check lint-sh test
+# Runs all the checks made in CI
+ci:
+    just codegen-check
+    just lint-sh
+    just test
 
-test: 
-    just build 
-    just test-example
-    just test/build
-    just test/test
-
-test-example:
+# Runs all the tests
+test: build
     just example/test
+    just tests/test
 
-clean-codegen:
-    rm -f pkg.pl.gen
-
-clean: clean-codegen
+# Cleans everything that is generated during builds or tests
+clean:
+    just example/clean
+    just tests/clean
+    rm -f bakage.pl.gen

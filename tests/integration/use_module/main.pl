@@ -1,22 +1,16 @@
-% Loads the package loader
 :- use_module(bakage).
-
-% Loads a package. The argument should be an atom equal to the name of the
-% dependency package specified in the `name/1` field of its manifest.
-:- use_module(pkg(testing)).
+:- use_module(pkg(test)).
 :- use_module(pkg(test_branch)).
 :- use_module(pkg(test_tag)).
 :- use_module(pkg(test_hash)).
 :- use_module(pkg(test_local)).
-
-% You can then use the predicates exported by the main file of the dependency
-% in the rest of the program.
+:- use_module('../../utils/testing.pl').
+:- use_module('../../utils/assert.pl').
 
 main :-
-    % `run_tests/0` is exported by `pkg(testing)`
-    run_tests,
-    halt.
+    run_tests.
 
+test("test if the git dependency work", (main_code(exist))).
 test("test if the branch dependency works", (tag(exist))).
 test("test if the tag dependency works", (branch(exist))).
 test("test if the hash dependency works", (hash(exist))).

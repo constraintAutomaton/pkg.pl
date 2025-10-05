@@ -1,0 +1,61 @@
+=== Testing help with various different color configurations ===
+Bakage: an experimental package manager for Prolog
+
+[33m[1mUsage:[0m [32m[1mbakage [OPTIONS] [COMMAND][0m
+
+[33m[1mOptions:[0m
+      [32m[1m--color[0m  When to use color. Valid options: auto, always, never
+  [32m[1m-h[0m, [32m[1m--help[0m   Print help
+
+[33m[1mCommands:[0m
+  [32m[1minstall[0m  Installs the dependencies of the current package
+================================================================
+Bakage: an experimental package manager for Prolog
+
+Usage: bakage [OPTIONS] [COMMAND]
+
+Options:
+      --color  When to use color. Valid options: auto, always, never
+  -h, --help   Print help
+
+Commands:
+  install  Installs the dependencies of the current package
+================================================================
+Bakage: an experimental package manager for Prolog
+
+[33m[1mUsage:[0m [32m[1mbakage [OPTIONS] [COMMAND][0m
+
+[33m[1mOptions:[0m
+      [32m[1m--color[0m  When to use color. Valid options: auto, always, never
+  [32m[1m-h[0m, [32m[1m--help[0m   Print help
+
+[33m[1mCommands:[0m
+  [32m[1minstall[0m  Installs the dependencies of the current package
+================================================================
+Bakage: an experimental package manager for Prolog
+
+Usage: bakage [OPTIONS] [COMMAND]
+
+Options:
+      --color  When to use color. Valid options: auto, always, never
+  -h, --help   Print help
+
+Commands:
+  install  Installs the dependencies of the current package
+=== Install help ===
+Install package dependencies
+
+[33m[1mUsage:[0m [32m[1mbakage install [OPTIONS][0m
+
+[33m[1mOptions:[0m
+      [32m[1m--color[0m  When to use color. Valid options: auto, always, never
+  [32m[1m-h[0m, [32m[1m--help[0m   Print help
+================================================================
+Install package dependencies
+
+Usage: bakage install [OPTIONS]
+
+Options:
+      --color  When to use color. Valid options: auto, always, never
+  -h, --help   Print help
+================================================================
