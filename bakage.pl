@@ -505,41 +505,48 @@ locked_dependencies(Ls):-
                 
 % Predicate to install the dependencies
 pkg_install(Report) :-
-        parse_manifest("scryer-manifest.pl", Manifest),
-        ensure_scryer_libs,
-        setenv("SHELL", "/bin/sh"),
-        setenv("GIT_ADVICE", "0"),
-        directory_files("scryer_libs/packages", Installed_Packages),
-        (member(dependencies(Deps), Manifest) ->
-            (
-                phrase(valid_dependencies(Deps), Validation_Report),
-                if_(all_dependencies_valid_t(Validation_Report),
-                    call_cleanup(
-                        (
-                        locked_dependencies(Locked_Dependencies),
-                        logical_plan(Plan, Deps, Installed_Packages, Locked_Dependencies),
-                        installation_execution(Plan, Installation_Report),
-                        lock_dependencies_result(Plan, M, Lock_Report),
-                        materialize_lock_file(M),
-                        append([Validation_Report, Installation_Report, Lock_Report], Report)
+        once((
+            parse_manifest("scryer-manifest.pl", Manifest),
+            ensure_scryer_libs,
+            setenv("SHELL", "/bin/sh"),
+            setenv("GIT_ADVICE", "0"),
+            directory_files("scryer_libs/packages", Installed_Packages),
+            (member(dependencies(Deps), Manifest) ->
+                (
+                    phrase(valid_dependencies(Deps), Validation_Report),
+                    if_(all_dependencies_valid_t(Validation_Report),
+                        call_cleanup(
+                            (
+                            locked_dependencies(Locked_Dependencies),
+                            logical_plan(Plan, Deps, Installed_Packages, Locked_Dependencies),
+                            installation_execution(Plan, Installation_Report),
+                            lock_dependencies_result(Plan, New_Locked_Dependencies, Lock_Report),
+                            update_locked_dependencies(Locked_Dependencies, New_Locked_Dependencies, M),
+                            materialize_lock_file(M),
+                            append([Validation_Report, Installation_Report, Lock_Report], Report)
+                            ),
+                            delete_directory("scryer_libs/temp")
                         ),
-                        delete_directory("scryer_libs/temp")
-                    ),
-                    (
-                        Report = Validation_Report
+                        (
+                            Report = Validation_Report
+                        )
                     )
-                )
-            );  Report = []
-        ).
+                );  Report = []
+            )
+        )).
+
+update_locked_dependencies(Prev, Current, Res):-
+    append(Prev, Current, Concat),
+    list_to_set(Concat, Res).
 
 materialize_lock_file(LockTerms) :-
     open('manifest-lock.pl', write, Stream),
     write(Stream, '% WARNING: This file is auto-generated. Do NOT modify it manually.\n\n'),
-    write_term(Stream, LockTerms, [double_quotes(true)]),
+    write_term(Stream, lock_dependencies(LockTerms), [double_quotes(true)]),
     write(Stream, '.\n'),
     close(Stream).
 
-lock_dependencies_result(Plan, lock_dependencies(Ls), Lock_Report) :-
+lock_dependencies_result(Plan, Ls, Lock_Report) :-
     parse_lock_report(Result_Report),
     phrase(lock_report(Plan, Result_Report), Results),
     phrase(lock_dependency_list(Results), Ls),
@@ -604,7 +611,7 @@ parse_report(Result_List, File) :-
         (
             close(Stream),
             ( file_exists(File)->
-                * delete_file(File)
+                delete_file(File)
             ; true
             )
         )
