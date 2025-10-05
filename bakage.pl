@@ -497,6 +497,7 @@ ensure_script(Name-String) :-
     append(["scryer_libs/scripts/", Name, ".sh"], Path),
     phrase_to_file(String, Path).
 
+% Capture the locked dependencies from the lockfile
 locked_dependencies(Ls):- 
     file_exists("manifest-lock.pl") -> 
         parse_manifest("manifest-lock.pl", LockFile),
@@ -535,10 +536,12 @@ pkg_install(Report) :-
             )
         )).
 
+% Update the locked dependencies
 update_locked_dependencies(Prev, Current, Res):-
     append(Prev, Current, Concat),
     list_to_set(Concat, Res).
 
+% Materialize in a file a lockfile
 materialize_lock_file(LockTerms) :-
     open('manifest-lock.pl', write, Stream),
     write(Stream, '% WARNING: This file is auto-generated. Do NOT modify it manually.\n\n'),
@@ -546,6 +549,7 @@ materialize_lock_file(LockTerms) :-
     write(Stream, '.\n'),
     close(Stream).
 
+% The lock dependencies operation report
 lock_dependencies_result(Plan, Ls, Lock_Report) :-
     parse_lock_report(Result_Report),
     phrase(lock_report(Plan, Result_Report), Results),
