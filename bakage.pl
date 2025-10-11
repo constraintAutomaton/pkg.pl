@@ -356,10 +356,25 @@ run_script_with_args(ScriptName, Args, Success) :-
 define_script_arg(Arg-Value) :- setenv(Arg, Value).
 undefine_script_arg(Arg-_) :- unsetenv(Arg).
 
+find_project_root(Root) :-
+    working_directory(CWD, CWD),
+    find_project_root_from(CWD, Root).
+
+find_project_root_from(Dir, Root) :-
+    append(Dir, "/scryer-manifest.pl", ManifestPath),
+    (   file_exists(ManifestPath) ->
+        Root = Dir
+    ;   append(ParentChars, [/, _ | _RestChars], Dir),
+        ParentChars \= [],
+        append(ParentChars, [/], ParentDir),
+        find_project_root_from(ParentDir, Root)
+    ).
+
 scryer_path(ScryerPath) :-
-    (   getenv("SCRYER_PATH", ScryerPath) ->
-        true
-    ;   ScryerPath = "scryer_libs"
+    (   getenv("SCRYER_PATH", EnvPath) ->
+        ScryerPath = EnvPath
+    ;   find_project_root(RootChars),
+        append([RootChars, "/scryer_libs"], ScryerPath)
     ).
 
 % the message sent to the user when a dependency is malformed
