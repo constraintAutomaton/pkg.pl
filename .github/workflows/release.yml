@@ -1,0 +1,20 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  main-release:
+    if: github.ref_type == 'branch' && github.ref_name == 'main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          prerelease: true
+          files: bakage.pl
