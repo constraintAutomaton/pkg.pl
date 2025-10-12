@@ -356,6 +356,58 @@ run_script_with_args(ScriptName, Args, Success) :-
 define_script_arg(Arg-Value) :- setenv(Arg, Value).
 undefine_script_arg(Arg-_) :- unsetenv(Arg).
 
+% join_sep_split/3: Monotonic join and split by separator.
+% Implementation by @bakaq from https://github.com/mthom/scryer-prolog/discussions/3121
+%
+% True when `Joined` is a list consisting of all the lists in `Segments`
+% separated by `Separator`, and `Separator` doesn't appear in any of the
+% lists in `Segments`. Can be used as both a split and a join depending
+% on the mode.
+join_sep_split(Joined, Separator, Segments) :-
+    join_sep_split_(Separator, Joined, Segments).
+
+% The empty separator case is just append/2
+join_sep_split_([], Joined, Segments) :-
+    append(Segments, Joined).
+join_sep_split_([S|Ss], Joined, Segments) :-
+    join_sep_split(Joined, [], [S|Ss], Segments, []).
+
+% Stuff like this that needs 2 list differences is hard to encode
+% in a DCG in my experience.
+join_sep_split([], [], _, [], []).
+join_sep_split([L0|LT0], Ls, Sep, [Seg|Segs0], Segs) :-
+    Ls0 = [L0|LT0],
+    next_segment(Ls0, Seg, Sep, Ls1, Reason),
+    join_sep_split_(Ls1, Ls, Sep, Segs0, Segs, Reason).
+
+join_sep_split_([], [], _, Segs0, Segs, Reason) :-
+    reason_segs(Reason, Segs0, Segs).
+join_sep_split_([L0|LT0], Ls, Sep, Segs0, Segs, _) :-
+    join_sep_split([L0|LT0], Ls, Sep, Segs0, Segs).
+
+reason_segs(sep, [[]|Segs], Segs).
+reason_segs(end, Segs, Segs).
+
+next_segment([], [], _, [], end).
+next_segment([L0|Ls0], Seg, Sep, Ls, Reason) :-
+    if_(
+        starts_with_t(Sep, [L0|Ls0], Ls1),
+        (Ls = Ls1, Seg = [], Reason = sep),
+        (Seg = [L0|Seg1], next_segment(Ls0, Seg1, Sep, Ls, Reason))
+    ).
+
+starts_with_t([], Ls, Ls, true).
+starts_with_t([S|Ss], Ls0, Ls, T) :-
+    starts_with_t_(Ls0, Ls, S, Ss, T).
+
+starts_with_t_([], _, _, _, false).
+starts_with_t_([L|Ls0], Ls, S, Ss, T) :-
+    if_(
+        S = L,
+        starts_with_t(Ss, Ls0, Ls, T),
+        T = false
+    ).
+
 find_project_root(Root) :-
     working_directory(CWD, CWD),
     find_project_root_from(CWD, Root).
@@ -364,9 +416,10 @@ find_project_root_from(Dir, Root) :-
     append(Dir, "/scryer-manifest.pl", ManifestPath),
     (   file_exists(ManifestPath) ->
         Root = Dir
-    ;   append(ParentChars, [/, _ | _RestChars], Dir),
-        ParentChars \= [],
-        append(ParentChars, [/], ParentDir),
+    ;   join_sep_split(Dir, "/", Segments),
+        append(ParentSegments, [_LastSegment], Segments),
+        ParentSegments \= [],
+        join_sep_split(ParentDir, "/", ParentSegments),
         find_project_root_from(ParentDir, Root)
     ).
 
