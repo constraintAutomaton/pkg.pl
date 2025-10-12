@@ -27,7 +27,7 @@ exit 1
 :- use_module(library(os), [argv/1, setenv/2, shell/1, unsetenv/1, getenv/2]).
 :- use_module(library(files), [
     directory_exists/1, make_directory_path/1, directory_files/2, file_exists/1,
-    delete_file/1, delete_directory/1
+    delete_file/1, delete_directory/1, working_directory/2
 ]).
 :- use_module(library(dcgs), [phrase/2, phrase/3, ... //0]). % 13211-3
 :- use_module(library(charsio), [write_term_to_chars/3]).
