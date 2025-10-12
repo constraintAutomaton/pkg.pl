@@ -6,6 +6,9 @@ on:
       - main
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   main-release:
     if: github.ref_type == 'branch' && github.ref_name == 'main'
