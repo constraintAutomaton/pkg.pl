@@ -19,7 +19,7 @@ jobs:
       - name: Update tag
         run: |
           git tag -f main-release
-          git push origin --tags
+          git push origin --tags --force-with-lease
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
