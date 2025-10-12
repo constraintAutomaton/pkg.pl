@@ -3,10 +3,6 @@ BINARY_NAME := "./bin/bakage.pl"
 default:
     @just --list
 
-# Builds bakage.pl when files from ./src are modified
-watch-dev:
-    watchexec -w ./src just build
-
 # Builds the bakage.pl file
 build binary_name=BINARY_NAME: codegen
     mv ./src/script.pl.gen ./src/script.pl

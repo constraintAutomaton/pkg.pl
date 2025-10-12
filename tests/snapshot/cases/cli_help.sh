@@ -1,7 +1,7 @@
 #!/bin/sh
 
 bakage() {
-    ../../bakage.pl "$@"
+    ../../bin/bakage.pl "$@"
 }
 
 echo "=== Testing help with various different color configurations ==="
