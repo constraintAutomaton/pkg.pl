@@ -1,18 +1,29 @@
+BINARY_NAME := "./bin/bakage.pl"
 # Shows all the tasks
 default:
     @just --list
 
+# Builds bakage.pl when files from ./src are modified
+watch-dev:
+    watchexec -w ./src just build
+
 # Builds the bakage.pl file
-build: codegen
-    mv bakage.pl.gen bakage.pl
-    chmod +x bakage.pl
+build binary_name=BINARY_NAME: codegen
+    mv ./src/script.pl.gen ./src/script.pl
+    cat ./src/bakage.pl > "{{binary_name}}"
+    printf "\n" >> "{{binary_name}}"
+    cat ./src/cli.pl >> "{{binary_name}}"
+    printf "\n" >> "{{binary_name}}"
+    cat ./src/script.pl >> "{{binary_name}}"
+    sed -i '/% === Dev import start ===/,/% === Dev import end ===/d' "{{binary_name}}"
+    chmod +x "{{binary_name}}"
 
 [private]
 codegen:
     #!/bin/sh
     set -eu
 
-    sed -e "/% === Generated code start ===/q" bakage.pl > bakage.pl.gen
+    sed -e "/% === Generated code start ===/q" ./src/script.pl > ./src/script.pl.gen
 
     for file in scripts/*.sh; do
         script_string=$(scryer-prolog -f -g "
@@ -23,14 +34,22 @@ codegen:
             halt.
         ")
         script_name=$(basename -s .sh "${file}")
-        printf '%s\n' "script_string(\"${script_name}\", ${script_string})." >> bakage.pl.gen
+        printf '%s\n' "script_string(\"${script_name}\", ${script_string})." >> ./src/script.pl.gen
     done
-    sed -n -e "/% === Generated code end ===/,$ {p}" bakage.pl >> bakage.pl.gen
+    sed -n -e "/% === Generated code end ===/,$ {p}" ./src/script.pl >> ./src/script.pl.gen
 
-# Checks if the bakage.pl file is up to date
+# Checks if the ./src/script.pl file is up to date
 codegen-check: codegen
-    diff bakage.pl bakage.pl.gen
-    rm -f bakage.pl.gen
+    diff ./src/script.pl ./src/script.pl.gen
+    rm -f ./src/script.pl.gen
+
+# Check if the ./bin/bakage.pl file is up to date
+build-check:
+    #!/bin/sh
+    temp_build = "./bin/bakage.pl.gen"
+    just build temp_build
+    diff temp_build "{{BINARY_NAME}}"
+    rm -f temp_build
 
 # Run all lints
 lint: lint-sh
@@ -38,10 +57,11 @@ lint: lint-sh
 [private]
 lint-sh:
     shellcheck -s sh -S warning ./**/*.sh
-    
+
 # Runs all the checks made in CI
 ci:
     just codegen-check
+    just build-check
     just lint-sh
     just test
 

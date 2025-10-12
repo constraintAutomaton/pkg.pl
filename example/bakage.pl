@@ -1,1 +1,1 @@
-../bakage.pl
+../bin/bakage.pl
