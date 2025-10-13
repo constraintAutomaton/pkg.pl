@@ -1,0 +1,12 @@
+=== Installing dependencies ===
+Ensuring is installed: git("https://github.com/bakaq/testing.pl.git")
+
+=== Running test from project root ===
+Running tests in module [37;1muser[0m.
+  test "greet succeeds" ... Hello, World!
+[32;1msucceeded[0m
+
+=== Running test from subdirectory ===
+Running tests in module [37;1muser[0m.
+  test "greet succeeds" ... Hello, World!
+[32;1msucceeded[0m
