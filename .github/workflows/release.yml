@@ -21,10 +21,11 @@ jobs:
           git push origin :refs/tags/main-release
           git tag -f main-release
           git push origin --tags
+          just build
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: main-release
           draft: false
           prerelease: true
-          files: bakage.pl
+          files: ./build/bakage.pl
