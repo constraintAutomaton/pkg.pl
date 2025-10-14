@@ -8,6 +8,7 @@ default:
 
 # Builds the bakage.pl file
 build: codegen
+    mv ./src/script.pl.gen ./src/script.pl
     cat ./src/bakage.pl > "{{BUILD_NAME}}"
     printf "\n" >> "{{BUILD_NAME}}"
     cat ./src/cli.pl >> "{{BUILD_NAME}}"
@@ -16,6 +17,7 @@ build: codegen
     sed -i '/% === Dev import start ===/,/% === Dev import end ===/d' "{{BUILD_NAME}}"
     chmod +x "{{BUILD_NAME}}"
 
+[private]
 codegen:
     #!/bin/sh
     set -eu
@@ -34,7 +36,6 @@ codegen:
         printf '%s\n' "script_string(\"${script_name}\", ${script_string})." >> ./src/script.pl.gen
     done
     sed -n -e "/% === Generated code end ===/,$ {p}" ./src/script.pl >> ./src/script.pl.gen
-    mv ./src/script.pl.gen ./src/script.pl
 
 # Checks if the bakage.pl file is up to date
 codegen-check: codegen
