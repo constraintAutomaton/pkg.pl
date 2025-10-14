@@ -1,7 +1,9 @@
 BUILD_NAME := "./build/bakage.pl"
 
+# Auto build bakage on changes
 watch-dev:
     watchexec -w scripts -w src -i "src/script.pl" just build
+
 # Shows all the tasks
 default:
     @just --list
