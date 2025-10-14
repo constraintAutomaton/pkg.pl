@@ -1,7 +1,7 @@
 #!/bin/sh
 
 bakage() {
-    ../../../../bakage.pl "$@"
+    ../../../../build/bakage.pl "$@"
 }
 
 echo "=== Installing dependencies ==="
