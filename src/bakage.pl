@@ -1,4 +1,4 @@
-/*bin/sh -c true
+/*/bin/sh -c true
 
 set -eu
 
