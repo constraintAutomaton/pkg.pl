@@ -38,7 +38,8 @@ codegen:
     done
 
 # Checks if the bakage.pl file is up to date
-codegen-check: codegen
+codegen-check: build
+    just codegen
     diff ./src/scripts.pl ./src/scripts.pl.gen
     rm -f ./src/scripts.pl.gen
 
