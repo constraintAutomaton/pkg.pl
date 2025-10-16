@@ -11,12 +11,12 @@ default:
 # Builds the bakage.pl file
 build: codegen
     mkdir -p build
-    mv ./src/script.pl.gen ./src/script.pl
+    mv ./src/scripts.pl.gen ./src/scripts.pl
     cat ./src/bakage.pl > "{{BUILD_NAME}}"
     printf "\n" >> "{{BUILD_NAME}}"
     cat ./src/cli.pl >> "{{BUILD_NAME}}"
     printf "\n" >> "{{BUILD_NAME}}"
-    cat ./src/script.pl >> "{{BUILD_NAME}}"
+    cat ./src/scripts.pl >> "{{BUILD_NAME}}"
     sed -i '/% === Dev import start ===/,/% === Dev import end ===/d' "{{BUILD_NAME}}"
     chmod +x "{{BUILD_NAME}}"
 
@@ -24,8 +24,6 @@ build: codegen
 codegen:
     #!/bin/sh
     set -eu
-
-    sed -e "/% === Generated code start ===/q" ./src/script.pl > ./src/script.pl.gen
 
     for file in scripts/*.sh; do
         script_string=$(scryer-prolog -f -g "
@@ -36,14 +34,13 @@ codegen:
             halt.
         ")
         script_name=$(basename -s .sh "${file}")
-        printf '%s\n' "script_string(\"${script_name}\", ${script_string})." >> ./src/script.pl.gen
+        printf '%s\n' "script_string(\"${script_name}\", ${script_string})." >> ./src/scripts.pl.gen
     done
-    sed -n -e "/% === Generated code end ===/,$ {p}" ./src/script.pl >> ./src/script.pl.gen
 
 # Checks if the bakage.pl file is up to date
 codegen-check: codegen
-    diff ./src/script.pl ./src/script.pl.gen
-    rm -f ./src/script.pl.gen
+    diff ./src/scripts.pl ./src/scripts.pl.gen
+    rm -f ./src/scripts.pl.gen
 
 # Run all lints
 lint: lint-sh

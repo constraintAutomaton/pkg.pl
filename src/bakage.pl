@@ -16,7 +16,7 @@ exit 1
 
 % === Dev import start ===
 :- use_module('cli.pl').
-:- use_module('script.pl').
+:- use_module('scripts.pl').
 % === Dev import end ===
 
 
