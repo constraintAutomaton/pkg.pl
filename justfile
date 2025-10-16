@@ -1,18 +1,29 @@
+BUILD_NAME := "./build/bakage.pl"
+
+# Auto build bakage on changes
+watch-dev:
+    watchexec -w scripts -w src -i "src/script.pl" just build
+
 # Shows all the tasks
 default:
     @just --list
 
 # Builds the bakage.pl file
 build: codegen
-    mv bakage.pl.gen bakage.pl
-    chmod +x bakage.pl
+    mkdir -p build
+    mv ./src/scripts.pl.gen ./src/scripts.pl
+    cat ./src/bakage.pl > "{{BUILD_NAME}}"
+    printf "\n" >> "{{BUILD_NAME}}"
+    cat ./src/cli.pl >> "{{BUILD_NAME}}"
+    printf "\n" >> "{{BUILD_NAME}}"
+    cat ./src/scripts.pl >> "{{BUILD_NAME}}"
+    sed -i '/% === Dev import start ===/,/% === Dev import end ===/d' "{{BUILD_NAME}}"
+    chmod +x "{{BUILD_NAME}}"
 
 [private]
 codegen:
     #!/bin/sh
     set -eu
-
-    sed -e "/% === Generated code start ===/q" bakage.pl > bakage.pl.gen
 
     for file in scripts/*.sh; do
         script_string=$(scryer-prolog -f -g "
@@ -23,14 +34,14 @@ codegen:
             halt.
         ")
         script_name=$(basename -s .sh "${file}")
-        printf '%s\n' "script_string(\"${script_name}\", ${script_string})." >> bakage.pl.gen
+        printf '%s\n' "script_string(\"${script_name}\", ${script_string})." >> ./src/scripts.pl.gen
     done
-    sed -n -e "/% === Generated code end ===/,$ {p}" bakage.pl >> bakage.pl.gen
 
 # Checks if the bakage.pl file is up to date
-codegen-check: codegen
-    diff bakage.pl bakage.pl.gen
-    rm -f bakage.pl.gen
+codegen-check: build
+    just codegen
+    diff ./src/scripts.pl ./src/scripts.pl.gen
+    rm -f ./src/scripts.pl.gen
 
 # Run all lints
 lint: lint-sh
@@ -38,7 +49,7 @@ lint: lint-sh
 [private]
 lint-sh:
     shellcheck -s sh -S warning ./**/*.sh
-    
+
 # Runs all the checks made in CI
 ci:
     just codegen-check

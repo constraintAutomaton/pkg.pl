@@ -1,2 +1,4 @@
 /.direnv
 *.gen
+build
+src/scripts.pl
