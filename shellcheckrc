@@ -1,0 +1,3 @@
+# We intentionally use /* as a command glob in the "shebang" for bakage.pl
+disable=SC1127
+disable=SC2211
