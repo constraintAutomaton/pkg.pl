@@ -1,29 +1,33 @@
-BUILD_NAME := "./build/bakage.pl"
+BUILD_NAME := "bakage.pl"
 
 # Auto build bakage on changes
 watch-dev:
-    watchexec -w scripts -w src -i "src/script.pl" just build
+    watchexec -w scripts -w src just build
 
 # Shows all the tasks
 default:
     @just --list
 
-# Builds the bakage.pl file
-build: codegen
+[private]
+ensure-build-directory:
     mkdir -p build
-    mv ./src/scripts.pl.gen ./src/scripts.pl
-    cat ./src/bakage.pl > "{{BUILD_NAME}}"
-    printf "\n" >> "{{BUILD_NAME}}"
-    cat ./src/cli.pl >> "{{BUILD_NAME}}"
-    printf "\n" >> "{{BUILD_NAME}}"
-    cat ./src/scripts.pl >> "{{BUILD_NAME}}"
-    sed -i '/% === Dev import start ===/,/% === Dev import end ===/d' "{{BUILD_NAME}}"
-    chmod +x "{{BUILD_NAME}}"
+
+# Builds the bakage.pl file
+build: codegen-scripts
+    cat ./src/shebang.sh > "./build/{{BUILD_NAME}}"
+    cat ./src/bakage.pl >> "./build/{{BUILD_NAME}}"
+    printf "\n" >> "./build/{{BUILD_NAME}}"
+    cat ./src/cli.pl >> "./build/{{BUILD_NAME}}"
+    printf "\n" >> "./build/{{BUILD_NAME}}"
+    cat ./build/scripts.pl >> "./build/{{BUILD_NAME}}"
+    chmod +x "./build/{{BUILD_NAME}}"
 
 [private]
-codegen:
+codegen-scripts: ensure-build-directory
     #!/bin/sh
     set -eu
+    
+    touch ./build/scripts.pl
 
     for file in scripts/*.sh; do
         script_string=$(scryer-prolog -f -g "
@@ -34,14 +38,8 @@ codegen:
             halt.
         ")
         script_name=$(basename -s .sh "${file}")
-        printf '%s\n' "script_string(\"${script_name}\", ${script_string})." >> ./src/scripts.pl.gen
+        printf '%s\n' "script_string(\"${script_name}\", ${script_string})." >> ./build/scripts.pl
     done
-
-# Checks if the bakage.pl file is up to date
-codegen-check: build
-    just codegen
-    diff ./src/scripts.pl ./src/scripts.pl.gen
-    rm -f ./src/scripts.pl.gen
 
 # Run all lints
 lint: lint-sh
@@ -52,7 +50,6 @@ lint-sh:
 
 # Runs all the checks made in CI
 ci:
-    just codegen-check
     just lint-sh
     just test
 
@@ -65,4 +62,4 @@ test: build
 clean:
     just example/clean
     just tests/clean
-    rm -f bakage.pl.gen
+    rm -rf build

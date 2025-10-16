@@ -16,10 +16,6 @@ jobs:
         uses: actions/checkout@v4
       - name: Install Nix
         uses: cachix/install-nix-action@v31
-      - name: Setup Cachix
-        uses: cachix/cachix-action@v16
-        with:
-          name: pkg-pl
       - name: Run CI
         run: |
           nix develop --ignore-env --command \
