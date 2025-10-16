@@ -10,6 +10,7 @@ default:
 
 # Builds the bakage.pl file
 build: codegen
+    mkdir -p build
     mv ./src/script.pl.gen ./src/script.pl
     cat ./src/bakage.pl > "{{BUILD_NAME}}"
     printf "\n" >> "{{BUILD_NAME}}"
