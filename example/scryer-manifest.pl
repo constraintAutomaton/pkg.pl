@@ -1,6 +1,8 @@
 name("name_of_the_package").
 % Optional. The file that will be imported when this package is used.
 main_file("main.pl").
+%License
+license(name("UNLICENSE")).
 % Optional
 dependencies([
     % A git url to clone

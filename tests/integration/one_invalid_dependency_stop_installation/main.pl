@@ -8,7 +8,7 @@
 
 main :-
     run_tests.
-  
+
 test("the package report is valid", (
         pkg_install(X),
         list_to_ord_set([

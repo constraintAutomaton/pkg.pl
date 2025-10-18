@@ -11,7 +11,7 @@ main :-
 test("the package report is valid", (
         pkg_install(X),
         Expected = [
-            validate_dependency(dependency("test", git("https://github.com/constraintAutomaton/test-prolog-package-manager.git", tag("tag"))))-success,
+            validate_manifest-success,
             do_nothing(dependency("test", git("https://github.com/constraintAutomaton/test-prolog-package-manager.git", tag("tag"))))-success
         ],
         test_eq(X, Expected)

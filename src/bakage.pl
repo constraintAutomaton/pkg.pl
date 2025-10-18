@@ -131,108 +131,6 @@ user_message_malformed_dependency(D, Error):-
     current_output(Out),
     phrase_to_stream((portray_clause_(D), "is malformed: ", Error, "\n"), Out).
 
-% A valid dependency
-valid_dependencies([]) --> [].
-
-valid_dependencies([dependency(Name, path(Path))| Ds]) --> {
-    if_(
-        (memberd_t(';', Name)
-        ; memberd_t('|', Name)
-        ; memberd_t(';', Path)
-        ; memberd_t('|', Path)
-        ),
-        (
-            Error = "the name and the path of the dependency should not contain an \";\" or an \"|\" caracter",
-            M = validate_dependency(dependency(Name, path(Path)))-error(Error),
-            user_message_malformed_dependency(dependency(Name, path(Path)), Error)
-        ),
-        M = validate_dependency(dependency(Name, path(Path)))-success
-    )
-    },
-    [M],
-    valid_dependencies(Ds).
-
-valid_dependencies([dependency(Name, git(Url))| Ds]) --> {
-    if_(
-        (memberd_t(';', Name)
-            ; memberd_t('|', Name)
-            ; memberd_t(';', Url)
-            ; memberd_t('|', Url)
-        ),
-        (
-            Error = "the name of the dependency and the url should not contain an \";\" or an \"|\" caracter",
-            M = validate_dependency(dependency(Name, git(Url)))-error(Error),
-            user_message_malformed_dependency(dependency(Name, git(Url)), Error)
-        ),
-         M = validate_dependency(dependency(Name, git(Url)))-success
-    )
-    },
-    [M],
-    valid_dependencies(Ds).
-
-valid_dependencies([dependency(Name, git(Url, branch(Branch)))| Ds]) --> {
-    if_(
-        (memberd_t(';', Name)
-        ; memberd_t('|', Name)
-        ; memberd_t(';', Url)
-        ; memberd_t('|', Url)
-        ; memberd_t(';', Branch)
-        ; memberd_t('|', Branch)),
-        (
-            Error = "the name, the url and the branch of dependency should not contain an \";\" or an \"|\" caracter",
-            M = validate_dependency(dependency(Name, git(Url, branch(Branch))))-error(Error),
-            user_message_malformed_dependency(dependency(Name, git(Url, branch(Branch))), Error)
-        ),(
-            M = validate_dependency(dependency(Name, git(Url, branch(Branch))))-success
-        )
-    )
-    },
-    [M],
-    valid_dependencies(Ds).
-
-valid_dependencies([dependency(Name, git(Url, tag(Tag)))|Ds]) --> {
-    if_(
-        (memberd_t(';', Name)
-        ; memberd_t('|', Name)
-        ; memberd_t(';', Url)
-        ; memberd_t('|', Url)
-        ; memberd_t(';', Tag)
-        ; memberd_t('|', Tag)),
-        (
-            Error = "the name, the url and the tag of dependency should not contain an \";\" or an \"|\" caracter",
-            M = validate_dependency(dependency(Name, git(Url, tag(Tag))))-error(Error),
-            user_message_malformed_dependency(dependency(Name, git(Url, tag(Tag))), Error)
-        ),
-        M = validate_dependency(dependency(Name, git(Url, tag(Tag))))-success
-    )
-    },
-    [M],
-    valid_dependencies(Ds).
-
-valid_dependencies([dependency(Name, git(Url, hash(Hash)))|Ds]) --> {
-    if_(
-        (memberd_t(';', Name)
-        ; memberd_t('|', Name)
-        ; memberd_t(';', Url)
-        ; memberd_t('|', Url)
-        ; memberd_t(';', Hash)
-        ; memberd_t('|', Hash)),
-        (
-            Error = "the name, the url and the hash of dependency should not contain an \";\" or an \"|\" caracter",
-            M = validate_dependency(dependency(Name, git(Url, hash(Hash))))-error(Error),
-            user_message_malformed_dependency(dependency(Name, git(Url, hash(Hash))), Error)
-        ),
-        M = validate_dependency(dependency(Name, git(Url, hash(Hash))))-success
-    )
-    },
-    [M],
-    valid_dependencies(Ds).
-
-all_dependencies_valid_t([], true).
-all_dependencies_valid_t([validate_dependency(_)-success| Vs], T) :-  all_dependencies_valid_t(Vs, T).
-all_dependencies_valid_t([validate_dependency(_)-error(_)| _], false).
-
-
 % A prolog file knowledge base represented as a list of terms
 prolog_kb_list(Stream) --> {read(Stream, Term), dif(Term, end_of_file)}, [Term], prolog_kb_list(Stream).
 prolog_kb_list(Stream) --> {read(Stream, Term), Term == end_of_file}, [].
@@ -240,7 +138,7 @@ prolog_kb_list(Stream) --> {read(Stream, Term), Term == end_of_file}, [].
 parse_manifest(Filename, Manifest) :-
     setup_call_cleanup(
         open(Filename, read, Stream),
-        once(phrase(prolog_kb_list(Stream), Manifest)),
+        catch(once(phrase(prolog_kb_list(Stream), Manifest)), error(E, I), throw(error_formating_of_manifest(E, I))),
         close(Stream)
     ).
 
@@ -291,23 +189,18 @@ pkg_install(Report) :-
         setenv("SHELL", "/bin/sh"),
         setenv("GIT_ADVICE", "0"),
         directory_files("scryer_libs/packages", Installed_Packages),
-        (member(dependencies(Deps), Manifest) ->
-            (
-                phrase(valid_dependencies(Deps), Validation_Report),
-                if_(all_dependencies_valid_t(Validation_Report),
-                    call_cleanup(
-                        (
-                        logical_plan(Plan, Deps, Installed_Packages),
-                        installation_execution(Plan, Installation_Report),
-                        append(Validation_Report, Installation_Report, Report)
-                        ),
-                        delete_directory("scryer_libs/temp")
-                    ),
+        if_(valid_manifest_t(Manifest, Validation_Report),
+            (member(dependencies(Deps), Manifest) ->
+                call_cleanup(
                     (
-                        Report = Validation_Report
-                    )
-                )
-            );  Report = []
+                    logical_plan(Plan, Deps, Installed_Packages),
+                    installation_execution(Plan, Installation_Report),
+                    append(Validation_Report, Installation_Report, Report)
+                    ),
+                    delete_directory("scryer_libs/temp")
+                ) ; Report = Validation_Report
+            ),
+            Report = Validation_Report
         ).
 
 % A logical plan to install the dependencies

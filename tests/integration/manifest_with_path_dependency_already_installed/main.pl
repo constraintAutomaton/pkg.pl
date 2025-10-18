@@ -11,7 +11,7 @@ main :-
 test("the package report is valid", (
         pkg_install(X),
         Expected = [
-            validate_dependency(dependency("test", path("./local_package")))-success,
+            validate_manifest-success,
             do_nothing(dependency("test", path("./local_package")))-success
         ],
         test_eq(X, Expected)

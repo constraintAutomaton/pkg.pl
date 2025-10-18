@@ -5,4 +5,4 @@
 main :-
     run_tests.
 
-test("test if no dependencies are installed", (pkg_install(X), test_eq(X, []))).
+test("test if no dependencies are installed", (pkg_install(X), test_eq(X, [validate_manifest-success]))).
