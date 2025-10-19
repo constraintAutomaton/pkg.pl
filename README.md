@@ -15,6 +15,8 @@ A package is a directory with a `scryer-manifest.pl`, the current schema is some
 name("name_of_the_package").
 % Optional. The file that will be imported when this package is used.
 main_file("main.pl").
+% The license of the package
+license(name("Unlicense"), path("./UNLICENSE"))
 % Optional
 dependencies([
     % A git url to clone
