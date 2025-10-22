@@ -63,36 +63,26 @@ valid_manifest_t(Manifest, Report, Valid) :-
 
     ).
 
+% Is valid when there is 0 instance and the field is optional
+has_a_field([], _, _, _, true, success).
 
-has_a_field(S, FieldName, FieldTypePred, FieldTypeName, Optional, Result):-
-    if_(S=[],
-        if_(Optional = true,
-            Result = success,
-            (
-                append(["the '", FieldName, "' of the package is not defined" ], E),
-                Result=error(E)
-            )
-        ),
+% Is not valid when there is 0 instance and the field is not optional
+has_a_field([], FieldName, _, _, false, error(E)):-
+    append(["the '", FieldName, "' of the package is not defined" ], E).
+
+% Is valid when there is one instance of the field and the field value has the correct type
+has_a_field([Field], FieldName, FieldTypePred, FieldTypeName, _, Result):-
+    if_(call(FieldTypePred, Field),
+        Result=success,
         (
-            length(S, L),
-            S = [Field|_],
-            call(FieldTypePred, Field, R),
-            if_(R = true,
-                if_(L = 1,
-                    Result=success,
-                    (
-                        append(["the package has multiple '",FieldName, "'"  ], E),
-                        Result=error(E)
-                    )
-                ),
-                (
-                  append(["the field '",FieldName, "' does not have the type '",FieldTypeName,"'"], E),
-                  Result=error(E)
-                )
-            )
-
+            append(["the field '",FieldName, "' does not have the type '",FieldTypeName,"'"], E),
+            Result=error(E)
         )
     ).
+
+% Is not valid when there are multiple instances of the field
+has_a_field([_|[_|_]], FieldName, _, _, _, error(E)):-
+    append(["the package has multiple '",FieldName, "'"  ], E).
 
 has_valid_name(Manifest, Result):-
     findall(N, member(name(N), Manifest), S),
