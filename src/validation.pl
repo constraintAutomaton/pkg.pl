@@ -111,15 +111,15 @@ valid_manifest_t(Manifest, Report, Valid) :-
 has_a_field([], _, _, true, success).
 
 % Is not valid when there is 0 instance and the field is not optional
-has_a_field([], FieldName, PredicateForm, false, error(E)):-
-    append(["the '", FieldName, "' of the package is not defined or does not have the a predicate of the form '", PredicateForm, "'"  ], E).
+has_a_field([], FieldName, PredicateForm, false, error(Es)):-
+    phrase(format_("the '~s' of the package is not defined or does not have the a predicate of the form '~s'", [FieldName, PredicateForm]), Es).
 
 % Is valid when there is one instance of the field and the field value has the correct type
 has_a_field([_], _, _, _, success).
 
 % Is not valid when there are multiple instances of the field
-has_a_field([_|[_|_]], FieldName, _, _, error(E)):-
-    append(["the package has multiple '",FieldName, "'"  ], E).
+has_a_field([_|[_|_]], FieldName, _, _, error(Es)):-
+     phrase(format_("the package has multiple '~s'", [FieldName]), Es).
 
 has_valid_name(Manifest, Result):-
     phrase(pattern_in_list(Manifest, name_t), S),
