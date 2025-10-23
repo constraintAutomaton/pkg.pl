@@ -3,26 +3,70 @@
 :- use_module(library(debug)).
 :- use_module(library(files)).
 
-is_list([]).
-is_list([_|L]) :-
-    is_list(L).
+is_list_t(Ls, T) :-
+    match(Ls, [
+        arm(ground([]), (T = true)),
+        arm(composite([any | bind(Ls1)]), is_list_t(Ls1, T)),
+        arm(any, (T = false))
+    ]).
 
-is_list_t(L, true):-
-    is_list(L),!.
-
-is_list_t(_, false).
 
 file_exists_t(P, true):- file_exists(P),!.
 file_exists_t(_, false).
 
-is_license_t(license(name(N)), true):- is_list_t(N, true),!.
-is_license_t(license(name(_)), false).
+license_t_(license(name(N)), true):- is_list_t(N, true).
+license_t_(license(name(N)), false):- is_list_t(N, false).
 
-is_license_t(license(name(N), path(P)), true):- is_list_t(N, true), is_list_t(P, true), file_exists_t(P, true).
-is_license_t(license(name(N), path(P)), false):- is_list_t(N, true), is_list_t(P, true), file_exists_t(P, false).
-is_license_t(license(name(N), path(P)), false):- is_list_t(N, false), is_list_t(P, false).
-is_license_t(license(name(N), path(P)), false):- is_list_t(N, true), is_list_t(P, false).
-is_license_t(license(name(N), path(P)), false):- is_list_t(N, false), is_list_t(P, true).
+license_t_(license(name(N), path(P)), true):- is_list_t(N, true), is_list_t(P, true).
+license_t_(license(name(N), path(P)), false):- is_list_t(N, false), is_list_t(P, false).
+license_t_(license(name(N), path(P)), false):- is_list_t(N, true), is_list_t(P, false).
+license_t_(license(name(N), path(P)), false):- is_list_t(N, false), is_list_t(P, true).
+
+license_valid_path_t([], Result1, Result1).
+license_valid_path_t([_|[_]], Result1, Result1).
+license_valid_path_t([license(name(_))], Result1, Result1).
+license_valid_path_t([license(name(_), path(P))], Result1, Result2):-
+    if_(file_exists_t(P),
+        (Result2 = Result1),
+        (Result2 = error("the path of the license is not valid"))
+    ).
+
+license_t(X, T) :-
+    match(X, [
+        arm(composite(license(bind(N))), (license_t_(license(N), T))),
+        arm(composite(license(bind(N), bind(P))), (license_t_(license(N, P), T))),
+        arm(any, (T = false))
+    ]).
+
+name_t(X, T) :-
+    match(X, [
+        arm(composite(name(bind(N))), (is_list_t(N, T))),
+        arm(any, (T = false))
+    ]).
+
+dependencies_t(X, T) :-
+    match(X, [
+        arm(composite(dependencies(bind(N))), (is_list_t(N, T))),
+        arm(any, (T = false))
+    ]).
+
+main_file_t(X, T) :-
+    match(X, [
+        arm(composite(main_file(bind(N))), (is_list_t(N, T))),
+        arm(any, (T = false))
+    ]).
+
+pattern_in_list([], _) --> [].
+
+pattern_in_list([L|Ls], Pattern) -->
+    {
+        if_(call(Pattern, L),
+            Match = [L],
+            Match = []
+        )
+    },
+    Match,
+    pattern_in_list(Ls, Pattern).
 
 % A valid manifest
 valid_manifest_t(Manifest, Report, Valid) :-
@@ -64,53 +108,35 @@ valid_manifest_t(Manifest, Report, Valid) :-
     ).
 
 % Is valid when there is 0 instance and the field is optional
-has_a_field([], _, _, _, true, success).
+has_a_field([], _, _, true, success).
 
 % Is not valid when there is 0 instance and the field is not optional
-has_a_field([], FieldName, _, _, false, error(E)):-
-    append(["the '", FieldName, "' of the package is not defined" ], E).
+has_a_field([], FieldName, PredicateForm, false, error(E)):-
+    append(["the '", FieldName, "' of the package is not defined or does not have the a predicate of the form '", PredicateForm, "'"  ], E).
 
 % Is valid when there is one instance of the field and the field value has the correct type
-has_a_field([Field], FieldName, FieldTypePred, FieldTypeName, _, Result):-
-    if_(call(FieldTypePred, Field),
-        Result=success,
-        (
-            append(["the field '",FieldName, "' does not have the type '",FieldTypeName,"'"], E),
-            Result=error(E)
-        )
-    ).
+has_a_field([_], _, _, _, success).
 
 % Is not valid when there are multiple instances of the field
-has_a_field([_|[_|_]], FieldName, _, _, _, error(E)):-
+has_a_field([_|[_|_]], FieldName, _, _, error(E)):-
     append(["the package has multiple '",FieldName, "'"  ], E).
 
 has_valid_name(Manifest, Result):-
-    findall(N, member(name(N), Manifest), S),
-    has_a_field(S, "name", is_list_t, "list", false, Result).
+    phrase(pattern_in_list(Manifest, name_t), S),
+    has_a_field(S, "name", "name(N)", false, Result).
 
 has_valid_optional_main_file(Manifest, Result) :-
-    findall(N, member(main_file(N), Manifest), S),
-    has_a_field(S, "main_file", is_list_t, "list", true, Result).
+    phrase(pattern_in_list(Manifest, main_file_t), S),
+    has_a_field(S, "main_file", "main_file(N)", true, Result).
 
 has_license(Manifest, Result) :-
-    findall(license(name(N1)), member(license(name(N1)), Manifest), S1),
-    findall(license(name(N2), path(P)), member(license(name(N2), path(P)), Manifest), S2),
-    length(S1, L1),
-    length(S2, L2),
-    if_((L1=0, L2=0),
-        Result=error("the license does not exist or respect the format 'license(Name)' or 'license(name(Name), path(Path))'"),
-        if_((L1=1, L2=0),
-            has_a_field(S1, "license", is_license_t, "license", false, Result),
-            if_((L1=0, L2=1),
-                has_a_field(S2, "license", is_license_t, "license with a valid path", false, Result),
-                Result=error("the package has multiple 'license'")
-            )
-        )
-    ).
+    phrase(pattern_in_list(Manifest, license_t), S),
+    has_a_field(S, "license", "license(name(N));license(name(N), path(P))", false, Result1),
+    license_valid_path_t(S, Result1, Result).
 
 has_optional_dependencies(Manifest, Result):-
-    findall(N, member(dependencies(N), Manifest), Deps),
-    has_a_field(Deps, "dependencies", is_list_t, "list", true, Result).
+    phrase(pattern_in_list(Manifest, dependencies_t), S),
+    has_a_field(S, "dependencies", "dependencies(D)", true, Result).
 
 % A valid dependency
 valid_dependencies([]) --> [].

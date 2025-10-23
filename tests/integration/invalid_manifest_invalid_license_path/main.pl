@@ -12,7 +12,7 @@ test("the package report is valid", (
         Expected = [
         validate_manifest_name-success,
         validate_manifest_main_file-success,
-        validate_manifest_license-error("the field 'license' does not have the type 'license with a valid path'"),
+        validate_manifest_license-error("the path of the license is not valid"),
         validate_dependencies-success
         ],
         test_eq(X, Expected)

@@ -10,7 +10,7 @@ main :-
 test("the package report is valid", (
         pkg_install(X),
         Expected = [
-        validate_manifest_name-error("the 'name' of the package is not defined"),
+        validate_manifest_name-error("the \'name\' of the package is not defined or does not have the a predicate of the form \'name(N)\'"),
         validate_manifest_main_file-success,
         validate_manifest_license-success,
         validate_dependencies-success

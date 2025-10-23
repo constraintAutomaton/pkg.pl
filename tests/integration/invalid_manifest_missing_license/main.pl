@@ -12,7 +12,7 @@ test("the package report is valid", (
         Expected = [
         validate_manifest_name-success,
         validate_manifest_main_file-success,
-        validate_manifest_license-error("the license does not exist or respect the format 'license(Name)' or 'license(name(Name), path(Path))'"),
+        validate_manifest_license-error("the \'license\' of the package is not defined or does not have the a predicate of the form \'license(name(N));license(name(N), path(P))\'"),
         validate_dependencies-success
         ],
         test_eq(X, Expected)
