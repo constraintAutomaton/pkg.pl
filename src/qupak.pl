@@ -1,4 +1,9 @@
-% Qupak: Pattern Matching for library(reif)
+%  Qupak: Pattern Matching for library(reif)
+%  === Bibliographic Note ===
+%  Author: Kauê Hunnicutt Bazilli (https://github.com/bakaq)
+%  Original implementation: https://github.com/bakaq/qupak
+%  Note: This version removed the operator (e.g. ~>, |) for normal predicate to avoid shipping them
+%  to every projects using Bakage
 %
 % This library provides predicates to do pattern matching in a way that complements and
 % expands on library(reif).
