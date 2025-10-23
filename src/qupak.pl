@@ -1,15 +1,18 @@
-%  Qupak: Pattern Matching for library(reif)
-%  === Bibliographic Note ===
-%  Author: Kauê Hunnicutt Bazilli (https://github.com/bakaq)
-%  Original implementation: https://github.com/bakaq/qupak
-%  Note: This version removed the operator (e.g. ~>, |) for normal predicate to avoid shipping them
-%  to every projects using Bakage
+% Qupak: Pattern Matching for library(reif)
+%
+% === Bibliographic Note ===
+% Author: Kauê Hunnicutt Bazilli (https://github.com/bakaq)
+% Original implementation: https://github.com/bakaq/qupak
+%
+% Notes:
+% - This version removes operators (e.g., ~>, |) for predicates
+%   to avoid shipping them in every project using Bakage.
 %
 % This library provides predicates to do pattern matching in a way that complements and
 % expands on library(reif).
 %
 % Tested on Scryer Prolog 0.10.
-
+%
 % === Pattern matching ===
 %
 % The core predicate of this library is pattern_match_t/3. It has a non-reified version
