@@ -3,6 +3,7 @@
 % === Bibliographic Note ===
 % Author: Kauê Hunnicutt Bazilli (https://github.com/bakaq)
 % Original implementation: https://github.com/bakaq/qupak
+%   Git Commit Hash: 5ca7fc6ea82c74fb71a2204a8c43f16e97e14d8f
 %
 % Notes:
 % - This version removes operators (e.g., ~>, |) for predicates
