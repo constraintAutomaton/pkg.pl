@@ -35,7 +35,7 @@ dependencies([
 
 Copy the `bakage.pl` file [from the
 releases](https://github.com/bakaq/bakage/releases) into your project. It is
-both the dependency manager and the package loader. Use `./bakage.pl install"`
+both the dependency manager and the package loader. Use `./bakage.pl install`
 to download the dependencies to a `scryer_libs` directory (it doesn't handle
 transitive dependencies yet). You can then import packages in your code as
 follows:
