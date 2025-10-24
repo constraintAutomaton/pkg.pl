@@ -6,11 +6,11 @@
 
 main :-
     run_tests.
-  
+
 test("the package report is valid", (
         pkg_install(X),
         Expected = [
-            validate_dependency(dependency("test", git("https://github.com/constraintAutomaton/test-prolog-package-manager.git", branch("branch"))))-success,
+            validate_manifest-success,
             install_dependency(dependency("test", git("https://github.com/constraintAutomaton/test-prolog-package-manager.git", branch("branch"))))-success
         ],
         test_eq(X, Expected)

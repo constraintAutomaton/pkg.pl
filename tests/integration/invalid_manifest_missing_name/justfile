@@ -1,0 +1,24 @@
+test:
+    #!/bin/sh
+
+    set -eu
+    . ../../utils/report_test.sh
+
+    printf "%s\n" "Testing invalid manifest with a missing name"
+
+    rm -rf scryer_libs && rm -f manifest-lock.pl
+    scryer-prolog main.pl -g "catch(main, _, halt(1)) ."
+
+    exitCode=0
+
+    if [ ! -d "./scryer_libs/packages/test" ]; then
+        print_test_result "the package folder does not exist in the dependencies" success
+    else
+        exitCode=1
+        print_test_result "the package folder does not exist in the dependencies" failure
+    fi
+
+
+    rm -rf scryer_libs && rm -f manifest-lock.pl
+
+    exit ${exitCode}

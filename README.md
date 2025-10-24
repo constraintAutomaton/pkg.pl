@@ -15,6 +15,8 @@ A package is a directory with a `scryer-manifest.pl`, the current schema is some
 name("name_of_the_package").
 % Optional. The file that will be imported when this package is used.
 main_file("main.pl").
+% The license of the package
+license(name("Unlicense"), path("./UNLICENSE"))
 % Optional
 dependencies([
     % A git url to clone
@@ -33,7 +35,7 @@ dependencies([
 
 Copy the `bakage.pl` file [from the
 releases](https://github.com/bakaq/bakage/releases) into your project. It is
-both the dependency manager and the package loader. Use `./bakage.pl install"`
+both the dependency manager and the package loader. Use `./bakage.pl install`
 to download the dependencies to a `scryer_libs` directory (it doesn't handle
 transitive dependencies yet). You can then import packages in your code as
 follows:

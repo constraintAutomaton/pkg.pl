@@ -17,6 +17,10 @@ build: codegen-scripts
     cat ./src/shebang.sh > "./build/{{BUILD_NAME}}"
     cat ./src/bakage.pl >> "./build/{{BUILD_NAME}}"
     printf "\n" >> "./build/{{BUILD_NAME}}"
+    cat ./src/qupak.pl >> "./build/{{BUILD_NAME}}"
+    printf "\n" >> "./build/{{BUILD_NAME}}"
+    cat ./src/validation.pl >> "./build/{{BUILD_NAME}}"
+    printf "\n" >> "./build/{{BUILD_NAME}}"
     cat ./src/cli.pl >> "./build/{{BUILD_NAME}}"
     printf "\n" >> "./build/{{BUILD_NAME}}"
     cat ./build/scripts.pl >> "./build/{{BUILD_NAME}}"
@@ -26,7 +30,7 @@ build: codegen-scripts
 codegen-scripts: ensure-build-directory
     #!/bin/sh
     set -eu
-    
+
     touch ./build/scripts.pl
 
     for file in scripts/*.sh; do
