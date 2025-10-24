@@ -16,10 +16,8 @@ file_exists_t(_, false).
 
 license_t_(license(name(N)), T):- is_list_t(N, T).
 
-license_t_(license(name(N), path(P)), true):- is_list_t(N, true), is_list_t(P, true).
-license_t_(license(name(N), path(P)), false):- is_list_t(N, false), is_list_t(P, false).
-license_t_(license(name(N), path(P)), false):- is_list_t(N, true), is_list_t(P, false).
-license_t_(license(name(N), path(P)), false):- is_list_t(N, false), is_list_t(P, true).
+license_t_(license(name(N), path(P)), T) :-
+    call((is_list_t(N), is_list_t(P)), T).
 
 license_valid_path_t([], Result1, Result1).
 license_valid_path_t([_|[_]], Result1, Result1).
