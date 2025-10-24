@@ -20,7 +20,7 @@ license_t_(license(name(N), path(P)), T) :-
     call((is_list_t(N), is_list_t(P)), T).
 
 license_valid_path_t([], Result1, Result1).
-license_valid_path_t([_|[_]], Result1, Result1).
+license_valid_path_t([_,_|_], Result1, Result1).
 license_valid_path_t([license(name(_))], Result1, Result1).
 license_valid_path_t([license(name(_), path(P))], Result1, Result2):-
     if_(file_exists_t(P),
@@ -115,7 +115,7 @@ has_a_field([], FieldName, PredicateForm, false, error(Es)):-
 has_a_field([_], _, _, _, success).
 
 % Is not valid when there are multiple instances of the field
-has_a_field([_|[_|_]], FieldName, _, _, error(Es)):-
+has_a_field([_,_|_], FieldName, _, _, error(Es)):-
      phrase(format_("the package has multiple '~s'", [FieldName]), Es).
 
 has_valid_name(Manifest, Result):-
