@@ -14,8 +14,7 @@ is_list_t(Ls, T) :-
 file_exists_t(P, true):- file_exists(P),!.
 file_exists_t(_, false).
 
-license_t_(license(name(N)), true):- is_list_t(N, true).
-license_t_(license(name(N)), false):- is_list_t(N, false).
+license_t_(license(name(N)), T):- is_list_t(N, T).
 
 license_t_(license(name(N), path(P)), true):- is_list_t(N, true), is_list_t(P, true).
 license_t_(license(name(N), path(P)), false):- is_list_t(N, false), is_list_t(P, false).
