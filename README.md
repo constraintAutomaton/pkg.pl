@@ -9,7 +9,7 @@ get in touch and create issues, pull requests and
 
 ## How to use
 
-A package is a directory with a `scryer-manifest.pl`, the current schema is something like:
+A package is a directory with a `scryer-manifest.pl` following this schema:
 
 ```prolog
 name("name_of_the_package").
