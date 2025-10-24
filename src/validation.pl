@@ -55,15 +55,15 @@ main_file_t(X, T) :-
 
 pattern_in_list([], _) --> [].
 
-pattern_in_list([L|Ls], Pattern) -->
+pattern_in_list([L|Ls], Pattern_t) -->
     {
-        if_(call(Pattern, L),
+        if_(call(Pattern_t, L),
             Match = [L],
             Match = []
         )
     },
     Match,
-    pattern_in_list(Ls, Pattern).
+    pattern_in_list(Ls, Pattern_t).
 
 % A valid manifest
 valid_manifest_t(Manifest, Report, Valid) :-
