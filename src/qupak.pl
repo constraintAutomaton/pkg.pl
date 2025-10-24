@@ -160,14 +160,6 @@ and(true, false, false).
 and(false, true, false).
 and(false, false, false).
 
-% === Pattern matching predicates ===
-
-:- meta_predicate(pattern_match_rev(?,:)).
-:- meta_predicate(pattern_match_rev(?,:,?)).
-:- meta_predicate(pattern_match(:,?)).
-:- meta_predicate(pattern_match(:,?,?)).
-:- meta_predicate(pattern_match_t(:,?,?)).
-
 %% pattern_match_rev(Value, Pattern) - emulates Value =~ Pattern
 pattern_match_rev(Value, Pattern, T) :-
     pattern_match_t(Pattern, Value, T).
@@ -185,31 +177,31 @@ pattern_match(Pattern, Value) :-
 % A predicate to check if a value matches a certain pattern.
 % The pattern is a specially constructed term that describes
 % a pattern so that this can be monotonic.
-pattern_match_t(Module:Pattern, Value, T) :-
+pattern_match_t(Pattern, Value, T) :-
     % TODO: Error handling of pattern arity.
     Pattern =.. [PatternKind|PatternArgs],
-    inner_pattern_match(PatternKind, PatternArgs, Value, Module, T).
+    inner_pattern_match(PatternKind, PatternArgs, Value, T).
 
 % Pattern constructors - emulate the symbol operators
 % any - emulates *
-inner_pattern_match(any, [], _, _, true).
+inner_pattern_match(any, [], _, true).
 
 % bind - emulates -
-inner_pattern_match(bind, [Variable], Value, _, true) :-
+inner_pattern_match(bind, [Variable], Value, true) :-
     Variable = Value.
 
 % check - emulates ?
-inner_pattern_match(check, [Variable], Value, _, T) :-
+inner_pattern_match(check, [Variable], Value, T) :-
     =(Variable, Value, T).
 
 % ground - emulates +
-inner_pattern_match(ground, [Ground], Value, _, T) :-
+inner_pattern_match(ground, [Ground], Value, T) :-
     % TODO: Error handling
     ground(Ground),
     =(Ground, Value, T).
 
 % composite - emulates \
-inner_pattern_match(composite, [Composite], Value, Module, T) :-
+inner_pattern_match(composite, [Composite], Value, T) :-
     Composite =.. [Functor|Args],
     length(Args, Arity),
     functor(Value, ValueFunctor, ValueArity),
@@ -219,7 +211,7 @@ inner_pattern_match(composite, [Composite], Value, Module, T) :-
             Arity = ValueArity,
             (
                 Value =.. [_|ValueArgs],
-                pattern_match_arguments(Args, ValueArgs, Module, true, T)
+                pattern_match_arguments(Args, ValueArgs, true, T)
             ),
             T = false
         ),
@@ -227,38 +219,36 @@ inner_pattern_match(composite, [Composite], Value, Module, T) :-
     ).
 
 % bind_all - emulates
-inner_pattern_match(bind_all, [Variable, Pattern], Value, Module, T) :-
+inner_pattern_match(bind_all, [Variable, Pattern], Value, T) :-
     Variable = Value,
-    pattern_match_t(Module:Pattern, Value, T).
+    pattern_match_t(Pattern, Value, T).
 
 % guard - emulates | in patterns
-inner_pattern_match(guard, [Pattern, Guard_1], Value, Module, T) :-
+inner_pattern_match(guard, [Pattern, Guard_1], Value, T) :-
     if_(
-        pattern_match_t(Module:Pattern, Value),
-        call(Module:Guard_1, T),
+        pattern_match_t(Pattern, Value),
+        call(Guard_1, T),
         T = false
     ).
 
-pattern_match_arguments([], [], _, T, T).
-pattern_match_arguments([Pattern|Patterns], [Arg|Args], Module, T0, T) :-
-    pattern_match_t(Module:Pattern, Arg, T1),
+pattern_match_arguments([], [], T, T).
+pattern_match_arguments([Pattern|Patterns], [Arg|Args], T0, T) :-
+    pattern_match_t(Pattern, Arg, T1),
     and(T0, T1, T2),
-    pattern_match_arguments(Patterns, Args, Module, T2, T).
+    pattern_match_arguments(Patterns, Args, T2, T).
 
 % === match/2 predicate ===
-
-:- meta_predicate(match(?,:)).
 
 %% match(Term, Arms)
 % Pattern matching with multiple arms.
 % Arms should be a list of arm(Pattern, Goal) terms
-match(Term, Module:Arms) :-
-    match_run(Arms, Module, Term).
+match(Term,Arms) :-
+    match_run(Arms, Term).
 
-match_run([], _, _) :- false.
-match_run([arm(Pattern, Goal_0)|Arms], Module, Term) :-
+match_run([], _) :- false.
+match_run([arm(Pattern, Goal_0)|Arms], Term) :-
     if_(
         pattern_match_rev(Term, Pattern),
-        call(Module:Goal_0),
-        match_run(Arms, Module, Term)
+        call(Goal_0),
+        match_run(Arms, Term)
     ).
